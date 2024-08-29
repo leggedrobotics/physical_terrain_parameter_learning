@@ -9,7 +9,7 @@ class ParamCollection(Serializable):
     @dataclass
     class GeneralParams:
         mode: str = "train"
-        max_epochs: int = 2
+        max_epochs: int = 100
         num_workers: int = 8
         batch_size: int = 64
         SEPERATE_DATASET_MODE: bool = True
@@ -20,11 +20,11 @@ class ParamCollection(Serializable):
         model_types:List[str]=field(default_factory=lambda: ['fric']) # or 'stiff'
         
         model_directory:str = "models"
-        # train_data_directory:str = "~/dataset"
-        # val_data_directory:str= "~/dataset/validation"
+        train_data_directory:str = "~/dataset"
+        val_data_directory:str= "~/dataset/validation"
         
-        train_data_directory:str = "~/dataset/try"
-        val_data_directory:str = "~/dataset/try/val"
+        # train_data_directory:str = "~/dataset/try"
+        # val_data_directory:str = "~/dataset/try/val"
 
         api_key:str=os.getenv('NEPTUNE_API_TOKEN', 'default_api_token_if_not_set')
         project:str=os.getenv('NEPTUNE_PROJECT', 'default_project_if_not_set')
