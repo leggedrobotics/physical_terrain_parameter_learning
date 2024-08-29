@@ -2,9 +2,10 @@
 
 This repository accompanies the paper "Identifying Terrain Physical Parameters from Vision - Towards Physical-Parameter-Aware Locomotion and Navigation". 
 
-The repo mainly contains two parts: 
+The repo mainly contains three parts: 
 1. Physical decoder training
 2. Online vision pipeline learning
+3. A seperate phyiscal decoder module that can directly be used for inference in vision pipeline.
 
 
 **Maintainer**: Jiaqi Chen 
@@ -35,3 +36,7 @@ python physical_decoder_training/train.py
 ## Online vision pipeline learning (Folder: BaseWVN)
 
 Please check the Readme in `BaseWVN` folder for detailed instructions.
+
+## Physical decoder module (Folder: Phy_Decoder)
+
+Please check the Readme in `Phy_Decoder` folder for detailed instructions.
