@@ -2,7 +2,7 @@ import torch.nn as nn
 import numpy as np
 import torch
 import torch.nn.functional as F
-import legged_gym.modules as rslgym_module
+from . import modules as rslgym_module
 
 class ModeFactory:
     @staticmethod

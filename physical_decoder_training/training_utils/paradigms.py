@@ -1,7 +1,7 @@
 import torch.nn as nn
 import numpy as np
 import torch
-import legged_gym.modules as rslgym_module
+from . import modules as rslgym_module
 from .modes import ModeFactory
 
 class BinAccuracy:
