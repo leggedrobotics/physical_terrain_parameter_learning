@@ -11,7 +11,7 @@ The repo mainly contains two parts:
 **Affiliation**: ETH Zurich  
 **Contact**: chenjiaq@student.ethz.ch 
 
-### Physical decoder training
+## Physical decoder training
 
 Set your neptune api token , username and project name in the system file `.bashrc`:
 ```bash
@@ -32,3 +32,6 @@ Here is the training command:
 ```bash
 python physical_decoder_training/train.py
 ```
+## Online vision pipeline learning
+
+Please check the Readme in `BaseWVN` folder for detailed instructions.
