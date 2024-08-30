@@ -22,7 +22,7 @@ The model_pth is automatically loaded from the package folder.
 **Attention**: Only env_num=1 is tested now. If you want to use env_num>1, you may need to modify the code a little bit.
 
 ```python
-from Phy_Decoder import initialize_models, prepare_padded_input, RNNInputBuffer
+from phy_decoder import initialize_models, prepare_padded_input, RNNInputBuffer
 # initializing
 self.step = 0
 self.env_num=1

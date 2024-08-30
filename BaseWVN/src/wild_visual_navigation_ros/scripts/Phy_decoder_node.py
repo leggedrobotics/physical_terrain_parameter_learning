@@ -10,7 +10,7 @@ Attention: this use an old stable version of the PHY-decoder.
 """
 
 from BaseWVN.utils import *
-from Phy_Decoder import initialize_models, RNNInputBuffer
+from phy_decoder import initialize_models, RNNInputBuffer
 
 import ros_converter as rc
 from wild_visual_navigation_msgs.msg import AnymalState

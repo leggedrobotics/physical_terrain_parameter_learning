@@ -53,6 +53,6 @@ python physical_decoder_training/train.py
 
 Please check the Readme in `BaseWVN` folder for detailed instructions.
 
-## Physical decoder module (Folder: Phy_Decoder)
+## Physical decoder module (Folder: phy_decoder)
 
-Please check the Readme in `Phy_Decoder` folder for detailed instructions.
+Please check the Readme in `phy_decoder` folder for detailed instructions.
