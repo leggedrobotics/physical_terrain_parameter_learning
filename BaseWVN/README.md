@@ -86,3 +86,8 @@ For different configs, please refer to the code and config file.
 ./src/wild_visual_navigation_ros/scripts/play_BaseWVN.sh  # start all BaseWVN nodes
 ```
 
+### Acknowledgements
+
+This pipeline includes code from the following open-source project(s) licensed under the MIT License:
+
+- [wild_visual_navigation](https://github.com/leggedrobotics/wild_visual_navigation) by Matias Mattamala, Jonas Frey
