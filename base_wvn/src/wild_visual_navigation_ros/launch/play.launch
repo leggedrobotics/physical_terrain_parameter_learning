@@ -4,16 +4,11 @@
     <node name="rosbag_merge_play" pkg="wild_visual_navigation_ros" type="play_rosbags.sh" output="screen" />
     
     <!-- Run RViz with specified configuration -->
-    <node name="rviz" pkg="rviz" type="rviz" args="-d /home/chenc/base_wvn/src/wild_visual_navigation_ros/launch/play.rviz" />
-	
-	<!-- Include another launch file -->
-    <!--<include file="$(find footcontact_history)/launch/all_feet.launch"/>-->
+    <node name="rviz" pkg="rviz" type="rviz" args="-d /home/chenc/physical_terrain_parameter_learning/base_wvn/src/wild_visual_navigation_ros/launch/play.rviz" />
     
     <!-- Run anymal description node with a delay -->
     <node name="load_config_node" pkg="anymal_d" type="load_config.py" output="screen" />
 
-    <!-- Include anymal_tf_publisher.launch, if no tf is published -->
-    <!-- <include file="$(find anymal_tf_publisher)/launch/anymal_tf_publisher.launch"/> -->
     <!-- <node name="plotjuggler" pkg="plotjuggler" type="plotjuggler" /> -->
 
 </launch>
