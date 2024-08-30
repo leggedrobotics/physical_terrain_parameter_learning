@@ -12,8 +12,8 @@ import numpy as np
 import re
 import fnmatch
 from datetime import datetime
-from .Decoder import BeliefDecoderLightning
-from .Decoder_config import config
+from .decoder import BeliefDecoderLightning
+from .decoder_config import config
 
 def extract_timestamp_from_filename(filename):
     # Assuming the filename is in the format: YYYY_MM_DD_HHMM__dataset...h5

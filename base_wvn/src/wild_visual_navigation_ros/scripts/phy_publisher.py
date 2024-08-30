@@ -23,7 +23,7 @@ import traceback
 
 class PhyPublsiher(NodeForROS):
     """
-    Process /debug_info and publish friction and stiffness prediction. It will be passed on to Phy_decoder_node to add foothold and other info.
+    Process /debug_info and publish friction and stiffness prediction. It will be passed on to phy_decoder_node to add foothold and other info.
     """
 
     def __init__(self):
@@ -196,7 +196,7 @@ class PhyPublsiher(NodeForROS):
 
 
 if __name__ == "__main__":
-    node_name = "Phy_publisher_node"
+    node_name = "phy_publisher_node"
     rospy.set_param("/use_sim_time", True)
     rospy.init_node(node_name)
     phy_node = PhyPublsiher()

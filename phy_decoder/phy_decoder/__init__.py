@@ -5,5 +5,5 @@
 #
 #                                                                               
 from .utils import *
-from .Decoder import *
-from .Decoder_config import *
+from .decoder import *
+from .decoder_config import *

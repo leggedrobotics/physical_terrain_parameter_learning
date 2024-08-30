@@ -20,7 +20,7 @@ catkin_package(
 )
 
 catkin_python_setup()
-catkin_install_python(PROGRAMS  scripts/Phy_decoder_node.py
+catkin_install_python(PROGRAMS  scripts/phy_decoder_node.py
                       
                                 
                       DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})

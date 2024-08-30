@@ -470,7 +470,7 @@ class PhyDecoder(NodeForROS):
 
 
 if __name__ == "__main__":
-    node_name = "Phy_decoder_node"
+    node_name = "phy_decoder_node"
     rospy.set_param("/use_sim_time", True)
     rospy.init_node(node_name)
     phy_node = PhyDecoder()

@@ -1043,7 +1043,7 @@ class MainProcess(NodeForROS):
 
 
 if __name__ == "__main__":
-    node_name = "Main_process_node"
+    node_name = "main_process_node"
     rospy.set_param("/use_sim_time", True)
     rospy.init_node(node_name)
 
