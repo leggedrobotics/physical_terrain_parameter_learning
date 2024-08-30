@@ -1,3 +1,9 @@
+#                                                                               
+# Copyright (c) 2024, ETH Zurich, Jiaqi Chen.
+# All rights reserved. Licensed under the MIT license.
+# See LICENSE file in the project root for details.
+#
+#                                                                               
 cmake_minimum_required(VERSION 3.0.2)
 project(wild_visual_navigation_msgs)
 
