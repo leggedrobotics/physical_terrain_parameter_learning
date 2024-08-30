@@ -19,7 +19,7 @@ pip install -r requirements.txt
 ```
 If you encounter any errors, please follow the error message to install the missing dependencies.
 
-**Attention**: You need to pip install the Physical decoders module. It is a package in folder (Phy_Decoder). The physical decoders compatible in the vision pipeline is trained using an old version of the physical decoder training repo (different from folder physical_decoder_training). So to avoid inconvenience we already provide trained decoders in package Phy_Decoder that will load its weights automatically upon running in the vision pipeline. Also install the package from https://github.com/utiasSTARS/liegroups.git and https://github.com/facebookresearch/segment-anything.git
+**Attention**: You need to pip install the Physical decoders module. It is a package in folder (Phy_Decoder). The physical decoders compatible in the vision pipeline is trained using an old version of the physical decoder training repo (different from folder physical_decoder_training). So to avoid inconvenience we already provide trained decoders in package Phy_Decoder that will load its weights automatically upon running in the vision pipeline. Also install the package from https://github.com/utiasSTARS/liegroups.git and https://github.com/facebookresearch/segment-anything.git. Please also put [ros-comm](https://github.com/leggedrobotics/ros_comm) under src folder to avoid ros comm bugs during real-time running.
 
 Set you neptune api token , username and project name in the system file `.bashrc`:
 ```bash
