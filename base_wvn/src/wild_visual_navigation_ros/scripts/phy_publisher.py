@@ -5,7 +5,7 @@
 #
 #
 """
-Main node to process ros messages, publish the relevant topics, train the model...
+Pub node to process ros messages, publish the friction and stiffness prediction.
 Attention: this use an old stable version of the PHY-decoder.
 """
 

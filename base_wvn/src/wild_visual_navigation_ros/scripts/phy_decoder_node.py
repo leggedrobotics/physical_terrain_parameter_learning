@@ -5,7 +5,7 @@
 #
 #
 """
-Main node to process ros messages, publish the relevant topics, train the model...
+Pub node to relay friction and stiffness prediction msgs from phy_publisher and additionally add foothold and other visulization info.
 Attention: this use an old stable version of the PHY-decoder.
 """
 
