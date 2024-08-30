@@ -9,8 +9,8 @@ import torchvision.transforms.functional as F
 import torch
 from segments import SegmentsDataset
 import re
-from BaseWVN import WVN_ROOT_DIR
-from BaseWVN.config.wvn_cfg import ParamCollection
+from base_wvn import WVN_ROOT_DIR
+from base_wvn.config.wvn_cfg import ParamCollection
 
 
 # ----Step2. download and automatically replace the flaw masks (uncomment the following lines)----

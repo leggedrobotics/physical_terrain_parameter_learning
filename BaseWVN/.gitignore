@@ -56,7 +56,7 @@ build/
 devel/
 logs/
 .catkin_tools/
-BaseWVN.egg-info/
+base_wvn.egg-info/
 image/
 image/hiking_feat.png
 results/

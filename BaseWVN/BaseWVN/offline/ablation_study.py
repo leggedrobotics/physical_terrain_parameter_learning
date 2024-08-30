@@ -7,10 +7,10 @@
 import datetime
 import torch
 import numpy as np
-from BaseWVN.config.wvn_cfg import ParamCollection
-from BaseWVN.offline.offline_training_lightning import train_and_evaluate
+from base_wvn.config.wvn_cfg import ParamCollection
+from base_wvn.offline.offline_training_lightning import train_and_evaluate
 import os
-from BaseWVN import WVN_ROOT_DIR
+from base_wvn import WVN_ROOT_DIR
 
 
 def set_attr(obj, attr, value):
@@ -160,6 +160,6 @@ def save_stats_to_file(stats, filename):
 
 
 if __name__ == "__main__":
-    from BaseWVN.offline.ablation_cfg import *
+    from base_wvn.offline.ablation_cfg import *
 
     test(conf_cfg)

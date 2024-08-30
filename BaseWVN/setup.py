@@ -8,7 +8,7 @@ from setuptools import find_packages
 from distutils.core import setup
 
 setup(
-    name="BaseWVN",
+    name="base_wvn",
     version="0.0.1",
     author="Jiaqi Chen",
     author_email="chenjiaq@student.ethz.ch",

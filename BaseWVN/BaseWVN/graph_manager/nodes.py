@@ -8,7 +8,7 @@ from liegroups.torch import SE3
 import torch
 import torch.nn.functional as F
 from typing import Union
-from BaseWVN.utils import ImageProjector
+from base_wvn.utils import ImageProjector
 
 
 class BaseNode:

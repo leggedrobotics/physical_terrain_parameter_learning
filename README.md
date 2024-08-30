@@ -49,9 +49,9 @@ Here is the training command:
 ```bash
 python physical_decoder_training/train.py
 ```
-## Online vision pipeline learning (Folder: BaseWVN)
+## Online vision pipeline learning (Folder: base_wvn)
 
-Please check the Readme in `BaseWVN` folder for detailed instructions.
+Please check the Readme in `base_wvn` folder for detailed instructions.
 
 ## Physical decoder module (Folder: phy_decoder)
 

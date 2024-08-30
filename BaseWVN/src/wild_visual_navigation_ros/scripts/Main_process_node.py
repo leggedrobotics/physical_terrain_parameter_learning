@@ -8,7 +8,7 @@
 Main node to process ros messages, publish the relevant topics, train the model...
 """
 
-from BaseWVN.utils import (
+from base_wvn.utils import (
     NodeForROS,
     FeatureExtractor,
     ImageProjector,
@@ -16,7 +16,7 @@ from BaseWVN.utils import (
     compute_phy_mask,
     add_color_bar_and_save,
 )
-from BaseWVN.graph_manager import Manager, MainNode, SubNode
+from base_wvn.graph_manager import Manager, MainNode, SubNode
 import ros_converter as rc
 import message_filters
 from sensor_msgs.msg import Image, CameraInfo, CompressedImage

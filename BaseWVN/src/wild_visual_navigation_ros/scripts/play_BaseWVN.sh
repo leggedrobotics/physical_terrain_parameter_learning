@@ -1,16 +1,16 @@
 #!/bin/bash
 
 # Define the session name
-SESSION_NAME="BaseWVN"
+SESSION_NAME="base_wvn"
 
 # Define the Python interpreter path
 PYTHON_PATH="/home/chenc/.conda/envs/vd/bin/python"
 
 # Define the base path for your scripts
-BASE_SCRIPT_PATH="/home/chenc/physical_terrain_parameter_learning/BaseWVN/src/wild_visual_navigation_ros/scripts"
+BASE_SCRIPT_PATH="/home/chenc/physical_terrain_parameter_learning/base_wvn/src/wild_visual_navigation_ros/scripts"
 
 # ROS setup commands
-ROS_SETUP="source ~/physical_terrain_parameter_learning/BaseWVN/devel/setup.bash"
+ROS_SETUP="source ~/physical_terrain_parameter_learning/base_wvn/devel/setup.bash"
 
 # Start a new tmux session in detached mode
 tmux new-session -d -s $SESSION_NAME
@@ -29,4 +29,4 @@ tmux send-keys -t $SESSION_NAME.2 "$ROS_SETUP && $PYTHON_PATH $BASE_SCRIPT_PATH/
 # Optional: Attach to the session if you want to see the output immediately
 tmux attach-session -t $SESSION_NAME
 
-echo "BaseWVN environment is set up in tmux. Use 'tmux attach -t $SESSION_NAME' to see it."
+echo "base_wvn environment is set up in tmux. Use 'tmux attach -t $SESSION_NAME' to see it."

@@ -9,7 +9,7 @@ Main node to process ros messages, publish the relevant topics, train the model.
 Attention: this use an old stable version of the PHY-decoder.
 """
 
-from BaseWVN.utils import *
+from base_wvn.utils import *
 from phy_decoder import initialize_models, prepare_padded_input, RNNInputBuffer
 
 from wild_visual_navigation_msgs.msg import AnymalState

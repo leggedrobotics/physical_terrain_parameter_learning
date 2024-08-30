@@ -40,20 +40,20 @@ source devel/setup.bash
 ```
 
 ## Vision pipeline - offline training
-All configs are set in `BaseWVN/config/wvn_config.py`, for all the training/testing, you should pay attention to path-related settings.
+All configs are set in `base_wvn/config/wvn_config.py`, for all the training/testing, you should pay attention to path-related settings.
 
 Download segment_anything model checkpoint from [here](https://drive.google.com/file/d/1TU3asknvo1UKdhx0z50ghHDt1C_McKJu/view?usp=drive_link) and speicify the path in the config file.
 ### Offline Dataset
-It is generated from the online rosbag playing. By setting `label_ext_mode: bool=True` you can record the dataset. The corresponding settings and paths are in config file. You need to sudo apt install `tmux` first. Please change the paths in the `play_BaseWVN.sh` file to your own paths.
+It is generated from the online rosbag playing. By setting `label_ext_mode: bool=True` you can record the dataset. The corresponding settings and paths are in config file. You need to sudo apt install `tmux` first. Please change the paths in the `play_base_wvn.sh` file to your own paths.
 
 You need to make sure the rosbag path is set to your own ones in `play_rosbag.sh` before executing the following.
 ```bash
 roslaunch wild_visual_navigation_ros play.launch # start rosbag playing
-./src/wild_visual_navigation_ros/scripts/play_BaseWVN.sh  # start all BaseWVN nodes
+./src/wild_visual_navigation_ros/scripts/play_base_wvn.sh  # start all base_wvn nodes
 ```
 `Ctrl+B` then press `arrow keys` to switch between panels in the cli and use `Ctrl+C` to stop/finish the recording. To kill the tmux session, press your prefix (e.g. `Ctrl+A` or `B`, which is the default) and then `:` and type `kill-session`, then hit `Enter`.
 
-The default saving path is `~/BaseWVN/results/manager` with the following files:
+The default saving path is `~/base_wvn/results/manager` with the following files:
 
 - `image_buffer.pt`: only store all the camera image tensors of the main nodes
 
@@ -66,16 +66,16 @@ After running offline training for the first time, you will get additional files
 - `gt_masks_SAM.pt`: all the automatically generated GT masks from SAM
 - `mask_img.pt`: the corresponding color image of the GT masks above
   
-You can put the above files into seperate folders, like `~/BaseWVN/results/manager/train/snow`
+You can put the above files into seperate folders, like `~/base_wvn/results/manager/train/snow`
 
 ### Manual correction of GT masks
 Beacause the automatically generated GT masks (from SAM or SEEM) are not perfect, we need to manually correct them with segments.ai . 
 
-You can use the `BaseWVN/offline/seg_correction.py` to correct the masks. The detailed usage you can refer to the code.
+You can use the `base_wvn/offline/seg_correction.py` to correct the masks. The detailed usage you can refer to the code.
 ### Running
 For offline training/testing, you can switch the config and run the following command:
 ```bash
-python BaseWVN/offline/offline_training_lightning.py
+python base_wvn/offline/offline_training_lightning.py
 ```
 
 ## Vision pipeline - online training
@@ -83,7 +83,7 @@ python BaseWVN/offline/offline_training_lightning.py
 ### Running
 For different configs, please refer to the code and config file.
 ```bash
-./src/wild_visual_navigation_ros/scripts/play_BaseWVN.sh  # start all BaseWVN nodes
+./src/wild_visual_navigation_ros/scripts/play_base_wvn.sh  # start all base_wvn nodes
 ```
 
 ## Acknowledgements

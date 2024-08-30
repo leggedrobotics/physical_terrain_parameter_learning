@@ -58,6 +58,6 @@ def get_model(model_cfg) -> torch.nn.Module:
     return model
 
 if __name__ == "__main__":
-    from BaseWVN.config.wvn_cfg import ParamCollection
+    from base_wvn.config.wvn_cfg import ParamCollection
     param=ParamCollection()
     model=get_model(param.model)

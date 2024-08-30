@@ -6,7 +6,7 @@
 #                                                                               
 import torch
 import os
-from BaseWVN import WVN_ROOT_DIR
+from base_wvn import WVN_ROOT_DIR
 
 
 class ConfidenceGenerator(torch.nn.Module):

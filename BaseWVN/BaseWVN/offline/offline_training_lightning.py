@@ -12,17 +12,17 @@ import cv2
 import matplotlib.pyplot as plt
 import datetime
 import time
-from BaseWVN import WVN_ROOT_DIR
-from BaseWVN.offline.model_helper import *
-from BaseWVN.offline.dataset_cls import *
-from BaseWVN.utils import (
+from base_wvn import WVN_ROOT_DIR
+from base_wvn.offline.model_helper import *
+from base_wvn.offline.dataset_cls import *
+from base_wvn.utils import (
     PhyLoss,
     FeatureExtractor,
     plot_overlay_image,
     compute_phy_mask,
 )
-from BaseWVN.model import get_model
-from BaseWVN.config.wvn_cfg import ParamCollection
+from base_wvn.model import get_model
+from base_wvn.config.wvn_cfg import ParamCollection
 from torch.utils.data import DataLoader
 import pytorch_lightning as pl
 from pytorch_lightning.loggers.neptune import NeptuneLogger

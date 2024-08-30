@@ -9,7 +9,7 @@ Main node to process ros messages, publish the relevant topics, train the model.
 Attention: this use an old stable version of the PHY-decoder.
 """
 
-from BaseWVN.utils import *
+from base_wvn.utils import *
 from phy_decoder import initialize_models, RNNInputBuffer
 
 import ros_converter as rc
@@ -28,7 +28,7 @@ from msg_to_transmatrix import msg_to_se3
 
 
 # from dotenv import load_dotenv
-# load_dotenv('/home/chen/BaseWVN/.env')
+# load_dotenv('/home/chen/base_wvn/.env')
 class PhyDecoder(NodeForROS):
     def __init__(self):
         super().__init__()

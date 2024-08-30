@@ -19,7 +19,7 @@ from .loss import PhyLoss
 import numpy as np
 from torchvision import transforms as T
 from typing import Union, Dict
-from BaseWVN import WVN_ROOT_DIR
+from base_wvn import WVN_ROOT_DIR
 from sklearn.mixture import GaussianMixture
 import os
 from scipy.stats import norm

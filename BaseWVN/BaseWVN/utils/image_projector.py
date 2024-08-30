@@ -4,7 +4,7 @@
 # See LICENSE file in the project root for details.
 #
 #                                                                               
-from BaseWVN import WVN_ROOT_DIR
+from base_wvn import WVN_ROOT_DIR
 import os
 from os.path import join
 import torch
@@ -177,7 +177,7 @@ class ImageProjector:
 def run_image_projector():
     """Projects 3D points to example images and returns an image with the projection"""
 
-    from BaseWVN.utils import get_img_from_fig
+    from base_wvn.utils import get_img_from_fig
     from PIL import Image
     import matplotlib.pyplot as plt
     import torch

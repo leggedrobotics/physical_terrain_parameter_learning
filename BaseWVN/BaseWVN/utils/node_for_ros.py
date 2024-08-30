@@ -8,7 +8,7 @@
 Main node to process ros messages, publish the relevant topics, train the model...
 """
 
-from BaseWVN import ParamCollection
+from base_wvn import ParamCollection
 from wild_visual_navigation_msgs.msg import AnymalState
 
 import rospy

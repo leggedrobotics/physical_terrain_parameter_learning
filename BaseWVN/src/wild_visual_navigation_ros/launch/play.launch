@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <launch>
-    <!-- <node name="replay_node" pkg="anymal_rsl_launch" type="replay.py" output="screen" args="d /home/chen/BaseWVN/2023-07-11-16-25-41_anymal-d020-lpc_mission.yaml" /> -->
+    <!-- <node name="replay_node" pkg="anymal_rsl_launch" type="replay.py" output="screen" args="d /home/chen/base_wvn/2023-07-11-16-25-41_anymal-d020-lpc_mission.yaml" /> -->
     <node name="rosbag_merge_play" pkg="wild_visual_navigation_ros" type="play_rosbags.sh" output="screen" />
     
     <!-- Run RViz with specified configuration -->
-    <node name="rviz" pkg="rviz" type="rviz" args="-d /home/chenc/BaseWVN/src/wild_visual_navigation_ros/launch/play.rviz" />
+    <node name="rviz" pkg="rviz" type="rviz" args="-d /home/chenc/base_wvn/src/wild_visual_navigation_ros/launch/play.rviz" />
 	
 	<!-- Include another launch file -->
     <!--<include file="$(find footcontact_history)/launch/all_feet.launch"/>-->
