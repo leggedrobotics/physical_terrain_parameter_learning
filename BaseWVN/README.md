@@ -57,7 +57,7 @@ The default saving path is `~/BaseWVN/results/manager` with the following files:
 
 - `image_buffer.pt`: only store all the camera image tensors of the main nodes
 
-- `train_data.pt`: only store the training data pairs, which are the same for an online training
+- `train_data.pt`: only store the training data pairs, which are the same for online training
 
 - `train_nodes.pt`:store all main nodes with all information
 
@@ -86,7 +86,7 @@ For different configs, please refer to the code and config file.
 ./src/wild_visual_navigation_ros/scripts/play_BaseWVN.sh  # start all BaseWVN nodes
 ```
 
-### Acknowledgements
+## Acknowledgements
 
 This pipeline includes code from the following open-source project(s) licensed under the MIT License:
 

@@ -15,9 +15,9 @@ from BaseWVN.config.wvn_cfg import ParamCollection
 
 # ----Step2. download and automatically replace the flaw masks (uncomment the following lines)----
 # use your own API key
-# api_key = 'b46510b38a03483c41468f690f1a938552ccc465'
+# api_key = 'xxx'
 # client = SegmentsClient(api_key)
-# dataset_identifier = "swsychenZJW/vowhite_2ndGROUND"
+# dataset_identifier = "xxx"
 # name = "v0.1"
 # client.add_release(dataset_identifier, name)
 def save_imperfect_images(image_batch, mask_batch, imperfect_indexes, save_folder):
@@ -106,10 +106,7 @@ if __name__ == "__main__":
     # ----Step0. list the indexes of imperfect masks ----
     imperfect_indexes = torch.arange(len(gt_masks))
     # imperfect_indexes = [78,79]
-    # imperfect_indexes = [0,1,2,3,4,13,14,15,16,18,19,20,21,25,26,27,28,29,30,31,32,33,34,35,36,39,56,59,60,61,62,63,64,65,75,80,81,82]
-    # imperfect_indexes = [5,6,7,8,9,10,11,23,24,26,31,34,35,36,37,38,39,48,49,51,57,63,64,65,66,67,68,69,80]
-    # imperfect_indexes = [17,18,19,20,24,54,56,67]
-    # imperfect_indexes = [37,38]
+
     # ----Step1. save for manual correction (uncomment the following line)----
     # save_imperfect_images(mask_imgs, gt_masks, imperfect_indexes, os.path.join(output_dir, 'imperfect_images'))
     # ----Step2. download and automatically replace the flaw masks (uncomment the following lines)----
