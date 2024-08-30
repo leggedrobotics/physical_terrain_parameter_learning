@@ -1,9 +1,9 @@
-#                                                                               
+#
 # Copyright (c) 2024, ETH Zurich, Jiaqi Chen.
 # All rights reserved. Licensed under the MIT license.
 # See LICENSE file in the project root for details.
 #
-#                                                                               
+#
 from .mlp import *
 import inspect
 import torch
@@ -41,6 +41,7 @@ def create_registery():
 
     return register, cfg_keys
 
+
 def get_model(model_cfg) -> torch.nn.Module:
     """Returns the instantiated model
 
@@ -57,7 +58,9 @@ def get_model(model_cfg) -> torch.nn.Module:
 
     return model
 
+
 if __name__ == "__main__":
     from base_wvn.config.wvn_cfg import ParamCollection
-    param=ParamCollection()
-    model=get_model(param.model)
+
+    param = ParamCollection()
+    model = get_model(param.model)

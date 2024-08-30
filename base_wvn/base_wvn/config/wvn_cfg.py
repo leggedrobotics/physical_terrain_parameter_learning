@@ -1,9 +1,9 @@
-#                                                                               
+#
 # Copyright (c) 2024, ETH Zurich, Jiaqi Chen.
 # All rights reserved. Licensed under the MIT license.
 # See LICENSE file in the project root for details.
 #
-#                                                                               
+#
 """
 This file contains the all configurations for the Wild-Visual-Navigation project.
 """
@@ -54,8 +54,8 @@ class ParamCollection(Serializable):
         # camera_info_topic: str='/hdr_camera/camera_info'
         # camera_topic: str='/v4l2_camera/image_raw_throttle/compressed'
         # camera_info_topic: str='/v4l2_camera/camera_info_throttle'
-        camera_topic: str='/wide_angle_camera_rear/image_color_rect/compressed'
-        camera_info_topic: str='/wide_angle_camera_rear/camera_info'
+        camera_topic: str = "/wide_angle_camera_rear/image_color_rect/compressed"
+        camera_info_topic: str = "/wide_angle_camera_rear/camera_info"
         # camera_topic: str = "/wide_angle_camera_front/image_color_rect/compressed"
         # camera_info_topic: str = "/wide_angle_camera_front/camera_info"
 
@@ -225,11 +225,15 @@ class ParamCollection(Serializable):
 
         @dataclass
         class SimpleMlpCfgParams:
-            input_size: int = 384  # 2880 for focal, 384 is embedding dim from dinov2-small
+            input_size: int = (
+                384  # 2880 for focal, 384 is embedding dim from dinov2-small
+            )
             # hidden_sizes: List[int] = field(default_factory=lambda: [32, 8, 32, 2])  # S
             # hidden_sizes: List[int] = field(default_factory=lambda: [128, 32, 128, 2])   # M
-            # hidden_sizes: List[int] = field(default_factory=lambda: [512, 128, 512, 2])  
-            hidden_sizes: List[int] = field(default_factory=lambda: [1024,512, 256, 512,1024, 2]) # L
+            # hidden_sizes: List[int] = field(default_factory=lambda: [512, 128, 512, 2])
+            hidden_sizes: List[int] = field(
+                default_factory=lambda: [1024, 512, 256, 512, 1024, 2]
+            )  # L
             # hidden_sizes: List[int] = field(default_factory=lambda: [4096,2048,1024, 512, 1024,2048,4096, 2]) # XL
             reconstruction: bool = True
 
@@ -291,7 +295,9 @@ class ParamCollection(Serializable):
         # img_bag_path:str='/media/chen/Chen/2024-01-25-white-board/1st/2024-01-25-19-36-11_anymal-d020-npc_0.bag'
         # img_bag_path:str='/media/chen/Chen/rosbag_white/2nd/2024-01-16-21-45-48_anymal-d020-npc_0-003.bag'
         # img_bag_path:str='/media/chen/Chen/rosbag_lee/2023-12-03-11-57-12_anymal-d020-npc_1-004.bag'
-        traindata_option: str = "each_full"  # 'each_full' or 'each_partial' or 'all_full' or 'all_partial'
+        traindata_option: str = (
+            "each_full"  # 'each_full' or 'each_partial' or 'all_full' or 'all_partial'
+        )
 
         test_images: bool = False  # output vis for image_buffer
         test_nodes: bool = False  # output vis for node data
@@ -299,7 +305,7 @@ class ParamCollection(Serializable):
         process_option: str = "all"  # 'all' or 'first_half' or 'first_100
 
         random_datasample: Tuple[bool, int] = (False, 40)
-        upload_error_stats_in_training: bool =True
+        upload_error_stats_in_training: bool = True
         gt_model: str = "SAM"  # 'SEEM' or 'SAM'
         SAM_type: str = "vit_h"
         SAM_ckpt: str = "/media/chenc/Chen/sam_vit_h_4b8939.pth"

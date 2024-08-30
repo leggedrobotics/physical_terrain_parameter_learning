@@ -1,9 +1,9 @@
-#                                                                               
+#
 # Copyright (c) 2024, ETH Zurich, Jiaqi Chen.
 # All rights reserved. Licensed under the MIT license.
 # See LICENSE file in the project root for details.
 #
-#                                                                               
+#
 import torch
 import numpy as np
 import os
@@ -28,9 +28,10 @@ import pytorch_lightning as pl
 from pytorch_lightning.loggers.neptune import NeptuneLogger
 from pytorch_lightning import Trainer
 
+
 class AverageTrainingTimeCallback(pl.Callback):
-    def __init__(self, warmup_steps=10, mode='gpu'):
-        assert mode in ['cpu', 'gpu'], "mode must be either 'cpu' or 'gpu'"
+    def __init__(self, warmup_steps=10, mode="gpu"):
+        assert mode in ["cpu", "gpu"], "mode must be either 'cpu' or 'gpu'"
         self.warmup_steps = warmup_steps
         self.mode = mode
         self.total_time = 0
@@ -39,7 +40,7 @@ class AverageTrainingTimeCallback(pl.Callback):
         self.memory_usage = []
 
     def on_train_batch_start(self, trainer, pl_module, batch, batch_idx):
-        if self.mode == 'gpu':
+        if self.mode == "gpu":
             self.start_event = torch.cuda.Event(enable_timing=True)
             self.end_event = torch.cuda.Event(enable_timing=True)
             self.start_event.record()
@@ -47,30 +48,44 @@ class AverageTrainingTimeCallback(pl.Callback):
             self.start_time = time.time()
 
     def on_after_backward(self, trainer, pl_module):
-        if self.mode == 'gpu':
+        if self.mode == "gpu":
             self.end_event.record()
             torch.cuda.synchronize()  # Wait for the events to be recorded
-            elapsed_time = self.start_event.elapsed_time(self.end_event)  # Elapsed time in milliseconds
+            elapsed_time = self.start_event.elapsed_time(
+                self.end_event
+            )  # Elapsed time in milliseconds
         else:
             self.end_time = time.time()
-            elapsed_time = (self.end_time - self.start_time) * 1000  # Convert to milliseconds
+            elapsed_time = (
+                self.end_time - self.start_time
+            ) * 1000  # Convert to milliseconds
 
         self.step_count += 1
         if self.step_count > self.warmup_steps:
             self.total_time += elapsed_time
             self.num_steps += 1
-            if self.mode == 'gpu':
+            if self.mode == "gpu":
                 mem_allocated = torch.cuda.memory_allocated()
                 self.memory_usage.append(mem_allocated)
 
     def on_train_epoch_end(self, trainer, pl_module):
         if self.num_steps > 0:
             avg_time_per_step = self.total_time / self.num_steps
-            avg_memory_usage = sum(self.memory_usage) / len(self.memory_usage) if self.memory_usage else 0
-            pl_module.log('avg_training_time_per_step', avg_time_per_step, on_epoch=True)
-            pl_module.log('avg_memory_usage', avg_memory_usage, on_epoch=True)
-            print(f'Average training time per step (after warmup): {avg_time_per_step:.2f} ms')
-            print(f'Average memory usage per step: {avg_memory_usage / (1024 ** 2):.2f} MB')
+            avg_memory_usage = (
+                sum(self.memory_usage) / len(self.memory_usage)
+                if self.memory_usage
+                else 0
+            )
+            pl_module.log(
+                "avg_training_time_per_step", avg_time_per_step, on_epoch=True
+            )
+            pl_module.log("avg_memory_usage", avg_memory_usage, on_epoch=True)
+            print(
+                f"Average training time per step (after warmup): {avg_time_per_step:.2f} ms"
+            )
+            print(
+                f"Average memory usage per step: {avg_memory_usage / (1024 ** 2):.2f} MB"
+            )
         else:
             print("Warmup period, average training time per step not recorded yet.")
             print("Warmup period, average memory usage per step not recorded yet.")
@@ -155,12 +170,30 @@ class DecoderLightning(pl.LightningModule):
             self.log("stiff_error_std", stats_dict["stiffness_std"])
             self.log("iou_mean", stats_dict["iou_mean"])
             self.log("iou_std", stats_dict["iou_std"])
-            self.log("digital_twin_fric_error_white_mean", stats_dict["digital_twin_fric_error_white_mean"])
-            self.log("digital_twin_fric_error_white_std", stats_dict["digital_twin_fric_error_white_std"])
-            self.log("digital_twin_fric_error_ground_mean", stats_dict["digital_twin_fric_error_ground_mean"])
-            self.log("digital_twin_fric_error_ground_std", stats_dict["digital_twin_fric_error_ground_std"])
-            self.log("digital_twin_fric_error_both_mean", stats_dict["digital_twin_fric_error_both_mean"])
-            self.log("digital_twin_fric_error_both_std", stats_dict["digital_twin_fric_error_both_std"])
+            self.log(
+                "digital_twin_fric_error_white_mean",
+                stats_dict["digital_twin_fric_error_white_mean"],
+            )
+            self.log(
+                "digital_twin_fric_error_white_std",
+                stats_dict["digital_twin_fric_error_white_std"],
+            )
+            self.log(
+                "digital_twin_fric_error_ground_mean",
+                stats_dict["digital_twin_fric_error_ground_mean"],
+            )
+            self.log(
+                "digital_twin_fric_error_ground_std",
+                stats_dict["digital_twin_fric_error_ground_std"],
+            )
+            self.log(
+                "digital_twin_fric_error_both_mean",
+                stats_dict["digital_twin_fric_error_both_mean"],
+            )
+            self.log(
+                "digital_twin_fric_error_both_std",
+                stats_dict["digital_twin_fric_error_both_std"],
+            )
             # self.log('over_conf_mean',stats_dict['over_conf_mean'])
             # self.log('over_conf_std',stats_dict['over_conf_std'])
             # self.log('under_conf_mean',stats_dict['under_conf_mean'])
@@ -775,9 +808,11 @@ class Validator:
         output_dict = conf_mask_generate(
             self.param, self.nodes, feat_extractor, model, self.gt_masks
         )
-        return_dict={}
+        return_dict = {}
         if "vowhite" in self.param.offline.env:
-            digital_twin_error_dict=phy_mask_total_accuracy(self.param, self.nodes, feat_extractor, model)
+            digital_twin_error_dict = phy_mask_total_accuracy(
+                self.param, self.nodes, feat_extractor, model
+            )
             return_dict.update(digital_twin_error_dict)
         conf_masks = output_dict["all_conf_masks"]
         ori_imgs = output_dict["ori_imgs"]

@@ -1,9 +1,9 @@
-#                                                                               
+#
 # Copyright (c) 2024, ETH Zurich, Jiaqi Chen.
 # All rights reserved. Licensed under the MIT license.
 # See LICENSE file in the project root for details.
 #
-#                                                                               
+#
 # MIT License
 #
 # Copyright (c) 2020 Preferred Networks, Inc.
@@ -70,7 +70,9 @@ class EmpiricalNormalization(nn.Module):
         self.register_buffer("count", torch.tensor(0))
 
         # cache
-        self._cached_std_inverse = torch.tensor(np.expand_dims(np.ones(shape, dtype=dtype), batch_axis))
+        self._cached_std_inverse = torch.tensor(
+            np.expand_dims(np.ones(shape, dtype=dtype), batch_axis)
+        )
         self._is_std_cached = False
         self._is_training = is_training
 
@@ -139,7 +141,7 @@ class EmpiricalNormalization(nn.Module):
         std = torch.sqrt(self._var + self.eps)
         return y * std + self._mean
 
-    def load_numpy(self, mean, var, count, device='cpu'):
+    def load_numpy(self, mean, var, count, device="cpu"):
         self._mean = torch.from_numpy(np.expand_dims(mean, self.batch_axis)).to(device)
         self._var = torch.from_numpy(np.expand_dims(var, self.batch_axis)).to(device)
         self.count = torch.tensor(count).to(device)
@@ -149,7 +151,8 @@ class EmpiricalNormalization(nn.Module):
 
     def set_validation_mode(self):
         self._is_training = False
-        
+
+
 class RunningMeanStd(object):
     def __init__(self, epsilon=1e-4, shape=()):
         """
@@ -159,15 +162,15 @@ class RunningMeanStd(object):
         :param epsilon: (float) helps with arithmetic issues
         :param shape: (tuple) the shape of the data stream's output
         """
-        self.mean = np.zeros(shape, 'float32')
-        self.var = np.ones(shape, 'float32')
+        self.mean = np.zeros(shape, "float32")
+        self.var = np.ones(shape, "float32")
         self.count = epsilon
 
     def update(self, arr):
         if np.isnan(arr).any():
-            print('array contains nan value')
-            print('array size is', arr.shape)
-            print('nan index', list(map(tuple, np.where(np.isnan(arr[0])))))
+            print("array contains nan value")
+            print("array size is", arr.shape)
+            print("nan index", list(map(tuple, np.where(np.isnan(arr[0])))))
         batch_mean = np.mean(arr, axis=0)
         batch_var = np.var(arr, axis=0)
         batch_count = arr.shape[0]
@@ -181,7 +184,11 @@ class RunningMeanStd(object):
         new_mean = self.mean + delta * batch_count / tot_count
         m_a = self.var * self.count
         m_b = batch_var * batch_count
-        m_2 = m_a + m_b + np.square(delta) * self.count * batch_count / (self.count + batch_count)
+        m_2 = (
+            m_a
+            + m_b
+            + np.square(delta) * self.count * batch_count / (self.count + batch_count)
+        )
         new_var = m_2 / (self.count + batch_count)
 
         new_count = batch_count + self.count
@@ -191,7 +198,9 @@ class RunningMeanStd(object):
         self.count = new_count
 
     def normalize(self, obs, clip):
-        normalized_obs = np.clip((obs - self.mean) / np.sqrt(self.var + 1e-8), -clip, clip)
+        normalized_obs = np.clip(
+            (obs - self.mean) / np.sqrt(self.var + 1e-8), -clip, clip
+        )
         return normalized_obs
 
     def save(self, dir_name, iteration, prefix=""):
@@ -209,4 +218,3 @@ class RunningMeanStd(object):
         self.mean = np.loadtxt(mean_file_name, dtype=np.float32)
         self.var = np.loadtxt(var_file_name, dtype=np.float32)
         self.count = np.loadtxt(count_file_name, dtype=np.float32)
-

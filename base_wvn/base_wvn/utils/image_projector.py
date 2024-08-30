@@ -1,9 +1,9 @@
-#                                                                               
+#
 # Copyright (c) 2024, ETH Zurich, Jiaqi Chen.
 # All rights reserved. Licensed under the MIT license.
 # See LICENSE file in the project root for details.
 #
-#                                                                               
+#
 from base_wvn import WVN_ROOT_DIR
 import os
 from os.path import join
@@ -13,7 +13,6 @@ from kornia.geometry.camera.pinhole import PinholeCamera
 from kornia.geometry.linalg import transform_points
 from kornia.utils.draw import draw_convex_polygon
 from liegroups.torch import SE3, SO3
-
 
 
 class ImageProjector:

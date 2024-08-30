@@ -1,9 +1,9 @@
-#                                                                               
+#
 # Copyright (c) 2024, ETH Zurich, Jiaqi Chen.
 # All rights reserved. Licensed under the MIT license.
 # See LICENSE file in the project root for details.
 #
-#                                                                               
+#
 import torch
 import torch.nn.functional as F
 from .dinov2_interface import Dinov2Interface
@@ -386,9 +386,9 @@ def compute_phy_mask(
     **kwargs,
 ):
     """process the original_img and return the phy_mask in resized img shape(non-confident--> nan)
-        Shape of phy_mask: (2,H,W) H,W is the size of resized img
-        Return: conf_mask (1,1,H,W) H,W is the size of resized img
-    
+    Shape of phy_mask: (2,H,W) H,W is the size of resized img
+    Return: conf_mask (1,1,H,W) H,W is the size of resized img
+
     """
 
     if mode != "fixed":
@@ -549,8 +549,8 @@ def compute_phy_mask(
     )
     # loss_threshold=thresholds[0]
     torch.cuda.empty_cache()
-    return_dict={
-        "output_phy":output_phy.detach(),
+    return_dict = {
+        "output_phy": output_phy.detach(),
         "trans_img": trans_img,
         "confidence": confidence,
         "conf_mask": conf_mask_resized,
@@ -624,7 +624,11 @@ def compute_phy_mask(
         if param is not None:
             param_path = os.path.join(output_dir, "param.yaml")
             save_to_yaml(param, param_path)
-            return_dict["overlay_imgs"] = fric_vis_imgs if param.general.pub_which_pred == "fric" else stiff_vis_imgs
+            return_dict["overlay_imgs"] = (
+                fric_vis_imgs
+                if param.general.pub_which_pred == "fric"
+                else stiff_vis_imgs
+            )
     # return output_phy,trans_img,confidence,conf_mask_resized
     torch.cuda.empty_cache()
     return return_dict

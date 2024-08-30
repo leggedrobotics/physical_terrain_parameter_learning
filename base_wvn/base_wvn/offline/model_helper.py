@@ -1,9 +1,9 @@
-#                                                                               
+#
 # Copyright (c) 2024, ETH Zurich, Jiaqi Chen.
 # All rights reserved. Licensed under the MIT license.
 # See LICENSE file in the project root for details.
 #
-#                                                                               
+#
 import torch
 import numpy as np
 import os
@@ -629,7 +629,7 @@ def phy_mask_total_accuracy(
         # Set values < 0.1 to 0.1
         white_pred[mask_lt] = white_gt_val[0] - white_pred[mask_lt]
 
-        error_white = torch.nan_to_num(white_pred)   # Replace NaNs with 0
+        error_white = torch.nan_to_num(white_pred)  # Replace NaNs with 0
         white_error_nodes.append(error_white)
         mask_gt = ground_pred > ground_gt_val[1]
         mask_between = (ground_pred >= ground_gt_val[0]) & (

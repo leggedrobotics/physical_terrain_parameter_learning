@@ -1,24 +1,32 @@
-#                                                                               
+#
 # Copyright (c) 2024, ETH Zurich, Jiaqi Chen.
 # All rights reserved. Licensed under the MIT license.
 # See LICENSE file in the project root for details.
 #
-#                                                                               
+#
 import torch.nn as nn
 import numpy as np
 import torch
 
 
 class MLP(nn.Module):
-    def __init__(self, shape, actionvation_fn, input_size, output_size, init_scale=2, dropout_rate=None):
+    def __init__(
+        self,
+        shape,
+        actionvation_fn,
+        input_size,
+        output_size,
+        init_scale=2,
+        dropout_rate=None,
+    ):
         super(MLP, self).__init__()
         self.activation_fn = actionvation_fn
 
         modules = [nn.Linear(input_size, shape[0]), self.activation_fn()]
         scale = [init_scale]
 
-        for idx in range(len(shape)-1):
-            modules.append(nn.Linear(shape[idx], shape[idx+1]))
+        for idx in range(len(shape) - 1):
+            modules.append(nn.Linear(shape[idx], shape[idx + 1]))
             modules.append(self.activation_fn())
             if dropout_rate is not None:
                 modules.append(nn.Dropout(dropout_rate))
@@ -37,5 +45,9 @@ class MLP(nn.Module):
 
     @staticmethod
     def init_weights(sequential, scales):
-        [torch.nn.init.orthogonal_(module.weight, gain=scales[idx]) for idx, module in
-         enumerate(mod for mod in sequential if isinstance(mod, nn.Linear))]
+        [
+            torch.nn.init.orthogonal_(module.weight, gain=scales[idx])
+            for idx, module in enumerate(
+                mod for mod in sequential if isinstance(mod, nn.Linear)
+            )
+        ]
