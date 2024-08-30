@@ -1,0 +1,10 @@
+deepdish==0.3.7
+matplotlib==3.7.5
+torch==2.2.2
+numpy==1.23.5
+simple-parsing==0.1.5
+PyYAML==6.0.1
+lightning==2.2.1
+neptune==1.10.1
+
+

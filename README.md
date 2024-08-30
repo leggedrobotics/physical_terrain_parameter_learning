@@ -1,6 +1,6 @@
 # Terrain physical parmaeter learning framework
 
-This repository accompanies the paper "Identifying Terrain Physical Parameters from Vision - Towards Physical-Parameter-Aware Locomotion and Navigation". 
+This repository accompanies the paper "Identifying Terrain Physical Parameters from Vision - Towards Physical-Parameter-Aware Locomotion and Navigation". Check project website [here](https://bit.ly/3Xo5AA8)
 
 The repo mainly contains three parts: 
 1. Physical decoder training
@@ -12,7 +12,23 @@ The repo mainly contains three parts:
 **Affiliation**: ETH Zurich  
 **Contact**: chenjiaq@student.ethz.ch 
 
+If you find this code useful in your research, please consider citing:
+```
+@INPROCEEDINGS{Chen24physical, 
+        AUTHOR    = {Jiaqi Chen AND Jonas Frey AND Ruyi Zhou AND Takahiro Miki AND Georg Martius AND Marco Hutter}, 
+        TITLE     = {Identifying Terrain Physical Parameters from Vision - Towards Physical-Parameter-Aware Locomotion and Navigation}, 
+        BOOKTITLE = {accepted for IEEE Robotics and Automation Letters (RA-L)}, 
+        YEAR      = {2024}
+      }
+```
+
 ## Physical decoder training (Folder: physical_decoder_training)
+
+Install the required packages:
+```bash
+cd physical_decoder_training
+pip install -r requirements.txt
+```
 
 Set your neptune api token , username and project name in the system file `.bashrc`:
 ```bash

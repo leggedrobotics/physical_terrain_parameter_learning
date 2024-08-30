@@ -3,7 +3,6 @@ import torch
 import datetime
 import os
 import re
-import torch
 
 def generate_dest_filename(source_files):
     # Extract parts from one of the source filenames
