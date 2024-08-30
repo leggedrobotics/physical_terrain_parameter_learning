@@ -1,3 +1,9 @@
+#                                                                               
+# Copyright (c) 2024, ETH Zurich, Jiaqi Chen.
+# All rights reserved. Licensed under the MIT license.
+# See LICENSE file in the project root for details.
+#
+#                                                                               
 import torch
 from torchvision import transforms as T
 from torch.cuda.amp import autocast
