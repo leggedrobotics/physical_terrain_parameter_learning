@@ -1,3 +1,9 @@
+#                                                                               
+# Copyright (c) 2024, ETH Zurich, Jiaqi Chen.
+# All rights reserved. Licensed under the MIT license.
+# See LICENSE file in the project root for details.
+#
+#                                                                               
 from dataclasses import dataclass, field,asdict
 from typing import List, Optional
 from simple_parsing.helpers import Serializable
