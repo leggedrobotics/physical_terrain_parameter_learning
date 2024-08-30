@@ -438,16 +438,6 @@ class MainProcess(NodeForROS):
                 h=self.camera_handler["H_scaled"],
                 w=self.camera_handler["W_scaled"],
             )
-            # tolist is expensive
-            # msg=FeatExtractorOutput()
-            # msg.header=img_msg.header
-            # # msg.features=features.reshape(-1).cpu().numpy()
-            # msg.segments=seg.cpu().numpy().flatten().tolist()
-            # msg.resized_image=transformed_img.cpu().numpy().flatten().tolist()
-            # msg.ori_camera_info=self.camera_handler["camera_info"]
-            # msg.resized_K=self.camera_handler["K_scaled"].cpu().numpy().flatten().tolist()
-            # msg.resized_height=self.camera_handler["H_scaled"]
-            # msg.resized_width=self.camera_handler["W_scaled"]
 
             if self.manager._label_ext_mode:
                 if abs(ts - self.last_image_saved) > 10.0:
@@ -594,16 +584,6 @@ class MainProcess(NodeForROS):
                 h=self.camera_handler["H_scaled"],
                 w=self.camera_handler["W_scaled"],
             )
-            # tolist is expensive
-            # msg=FeatExtractorOutput()
-            # msg.header=img_msg.header
-            # # msg.features=features.reshape(-1).cpu().numpy()
-            # msg.segments=seg.cpu().numpy().flatten().tolist()
-            # msg.resized_image=transformed_img.cpu().numpy().flatten().tolist()
-            # msg.ori_camera_info=self.camera_handler["camera_info"]
-            # msg.resized_K=self.camera_handler["K_scaled"].cpu().numpy().flatten().tolist()
-            # msg.resized_height=self.camera_handler["H_scaled"]
-            # msg.resized_width=self.camera_handler["W_scaled"]
 
             if self.manager._label_ext_mode:
                 if abs(ts - self.last_image_saved) > 10.0:
