@@ -31,7 +31,7 @@ class ParamCollection(Serializable):
         plot_overlay_online: bool = True
         model_path: str = "model"
         pub_pred_as_layer: str = "RGB"  # single or RGB
-        pub_which_pred: str = "stiff"  # fric or stiff
+        pub_which_pred: str = "fric"  # fric or stiff
         # ... [rest of the attributes]
 
     general: GeneralParams = GeneralParams()

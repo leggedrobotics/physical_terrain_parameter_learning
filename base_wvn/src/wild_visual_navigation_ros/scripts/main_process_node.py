@@ -475,6 +475,7 @@ class MainProcess(NodeForROS):
                 self.visualize_main_graph()
             if added_new_node:
                 self.manager.update_visualization_node()
+            # self.update_prediction(main_node, ts, img_msg.header)
             if self.manager.subnodes_update is not None:
                 self.visualize_nodes(self.manager.subnodes_update)
             with self.log_data["Lock"]:
