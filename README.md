@@ -32,7 +32,7 @@ First, clone this repository to your local machine and install the dependencies.
 ```shell
 cd phy_decoder/
 
-# Install the dependencies
+# Install the dependencies, the listed versions are for compatibility with the visual decoder environment
 pip install -r requirements.txt
 
 # Install the package
@@ -43,6 +43,8 @@ pip install -e .
 This two decoders use sequence data as input and output a physical parameters sequence (friction or stiffness). 
 The main architecture is GRU+Self-Attention with a parallel structure.
 The model_pth is automatically loaded from the package folder. 
+Here we showcase how to use the decoders in legged_gym. 
+If you want to deploy it on real robots with ros, please check the `base_wvn` folder for ros usage.
 
 **Attention**: Only env_num=1 is tested now. If you want to use env_num>1, you may need to modify the code a little bit.
 
@@ -64,7 +66,7 @@ while True:
     step += 1 # Pre-increment to 1 for first step not 0
     input_data=obs[:,:341] # Input is batch_size (env_num)x341dim(prop. + ext.)
     padded_inputs = prepare_padded_input(input_data, input_buffers, step, env_num)
-    padded_input = torch.stack(padded_inputs, dim=0) # reshape to env_num x num_timesteps x 341
+    padded_input = torch.stack(padded_inputs, dim=0) # reshape to env_num x num_timesteps (sequence_len) x 341
     
     if predictor_cfg['reset_hidden_each_epoch']:
         fric_hidden = fric_predictor.init_hidden(env_num)
