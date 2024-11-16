@@ -1,8 +1,8 @@
-# Vision pipeline
-This repo is for the online vision pipeline that uses trained physical decoders to output dense prediction of the environments in the vision channel. The pipeline is based on the previous repo from "Fast Traversability Estimation for Wild Visual Navigation".
+#  Self-supervised Visual Decoder Learning
+This code is for online training of the visual decoder to predict the physical terrain paramters estimated by the physical decoder from images. The pipeline is based on the previous repo from "[Fast Traversability Estimation for Wild Visual Navigation](https://github.com/leggedrobotics/wild_visual_navigation)".
 
 ## Installation
-**Attention**: Please follow the installation order exactly as below. Otherwise, you may encounter some errors. Here we use mamba for virtual environment management with **python 3.9**
+**Attention**: Please follow the installation order exactly as below. Otherwise, you may encounter some errors. Here we use mamba for virtual environment management with **Python 3.9**
 ### Install robostack ros first:
 https://robostack.github.io/GettingStarted.html
 
@@ -19,23 +19,23 @@ pip install -r requirements.txt
 ```
 If you encounter any errors, please follow the error message to install the missing dependencies.
 
-**Attention**: You need to pip install the Physical decoders module. It is a package in folder (phy_decoder). The physical decoders compatible in the vision pipeline is trained using an old version of the physical decoder training repo (different from folder physical_decoder_training). So to avoid inconvenience we already provide trained decoders in package phy_decoder that will load its weights automatically upon running in the vision pipeline. Also install the package from https://github.com/utiasSTARS/liegroups.git and https://github.com/facebookresearch/segment-anything.git. Please also put [ros-comm](https://github.com/leggedrobotics/ros_comm) under src folder to avoid ros comm bugs during real-time running.
+**Attention**: As a prerequest you need to pip install the [Stand-alone pre-trained physical decoder](phy_decoder/README.md). The physical decoders compatible in the vision pipeline is trained using an old version of the physical decoder training repo (different from folder physical_decoder_training). So to avoid inconvenience we already provide trained decoders in package phy_decoder that will load its weights automatically upon running in the vision pipeline. Also install the package from https://github.com/utiasSTARS/liegroups.git and https://github.com/facebookresearch/segment-anything.git. Please also put [ros-comm](https://github.com/leggedrobotics/ros_comm) under src folder to avoid ros comm bugs during real-time running.
 
-Set you neptune api token , username and project name in the system file `.bashrc`:
+Set you neptune API token, username, and project name in the system file `.bashrc`:
 ```bash
 export NEPTUNE_API_TOKEN="your_neptune_api_token"
 export NEPTUNE_USERNAME="your_neptune_username"
 export NEPTUNE_PROJECT="your_neptune_username/your_neptune_project_name"
 ```
 
-### Install this repo:
+### Install this base_wvn package:
 ```bash
 pip install -e .
 ```
 
-### Build this repo with ROS:
+### Build the base_wvn with ROS:
 ```bash
-catkin build
+catkin build wild_visual_navigation_ros
 source devel/setup.bash
 ```
 
