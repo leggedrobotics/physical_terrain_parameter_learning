@@ -16,12 +16,17 @@ The repo mainly contains three parts:
 
 If this code supports your research, please consider citing the following work. We also welcome feedback or collaboration opportunities:
 ```
-@INPROCEEDINGS{Chen24physical, 
-        AUTHOR    = {Jiaqi Chen AND Jonas Frey AND Ruyi Zhou AND Takahiro Miki AND Georg Martius AND Marco Hutter}, 
-        TITLE     = {Identifying Terrain Physical Parameters from Vision - Towards Physical-Parameter-Aware Locomotion and Navigation}, 
-        BOOKTITLE = {accepted for IEEE Robotics and Automation Letters (RA-L)}, 
-        YEAR      = {2024}
-      }
+@ARTICLE{Chen24physical,
+  author={Chen, Jiaqi and Frey, Jonas and Zhou, Ruyi and Miki, Takahiro and Martius, Georg and Hutter, Marco},
+  journal={IEEE Robotics and Automation Letters}, 
+  title={Identifying Terrain Physical Parameters From Vision - Towards Physical-Parameter-Aware Locomotion and Navigation}, 
+  year={2024},
+  volume={9},
+  number={11},
+  pages={9279-9286},
+  keywords={Decoding;Friction;Visualization;Training;Robot sensing systems;Navigation;Legged locomotion;Deep learning;Visual perception;Terrain mapping;Legged Robots;deep learning for visual perception;field robots},
+  doi={10.1109/LRA.2024.3455788}}
+
 ```
 
 ## Stand-alone Pre-trained Physical Decoder (Folder: phy_decoder)
