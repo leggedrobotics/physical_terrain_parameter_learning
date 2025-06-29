@@ -5,12 +5,18 @@
 #
 #
 import torch.nn as nn
-import numpy as np
 import torch
 
 
 class MLP(nn.Module):
-    def __init__(self, shape, actionvation_fn, input_size, output_size, init_scale=2):
+    def __init__(
+        self,
+        shape,
+        actionvation_fn,
+        input_size,
+        output_size,
+        init_scale=2,
+    ):
         super(MLP, self).__init__()
         self.activation_fn = actionvation_fn
 

@@ -6,13 +6,13 @@
 #
 import sys
 import os
-from datetime import datetime
 import deepdish as dd
 import matplotlib.pyplot as plt
 import torch
 import numpy as np
 import re
-import fnmatch
+
+from phy_decoder import get_latest_file_in_directory
 
 
 def extract_timestamp_from_filename(filename):
@@ -30,52 +30,6 @@ def create_subfolder(directory, timestamp):
     if not os.path.exists(subfolder_path):
         os.makedirs(subfolder_path)
     return subfolder_path
-
-
-def get_latest_file_in_directory(directory, pattern="*.h5", conditions=[]):
-    """
-    Returns the path to the latest (most recent) file
-    of the joined path(s) or None if no file found.
-    """
-    try:
-        # Build the full pattern incorporating conditions
-        for condition in conditions:
-            pattern = f"*{condition}*{pattern}"
-
-        # List all files in directory that match the given pattern
-        files = [
-            os.path.join(directory, f)
-            for f in os.listdir(directory)
-            if os.path.isfile(os.path.join(directory, f))
-            and fnmatch.fnmatch(f, pattern)
-        ]
-
-        # # Get latest file
-        # latest_file = max(files, key=os.path.getctime)
-        # Parse the date from each filename and associate it with the file path
-        date_file_pairs = []
-        for file in files:
-            # Extract the timestamp part of the filename
-            basename = os.path.basename(file)
-            timestamp_str = (
-                basename.split("_")[-4]
-                + basename.split("_")[-3]
-                + basename.split("_")[-2]
-                + basename.split("_")[-1][:-4]
-            )  # YYYYMMDDHHMM
-            timestamp = datetime.strptime(timestamp_str, "%Y%m%d%H%M")
-            date_file_pairs.append((timestamp, file))
-
-        # Get the file with the latest date
-        _, latest_file = max(date_file_pairs, key=lambda x: x[0])
-
-        # Print the latest file name
-        print(f"Latest file in {directory}: {os.path.basename(latest_file)}")
-
-        return latest_file
-    except ValueError as e:
-        print(f"No files found in {directory} matching pattern {pattern}.")
-        return None
 
 
 def compute_episode_statistics(data):

@@ -23,67 +23,6 @@ class FootFilter:
         self.continuous_contact_count = 0
         self.contact_threshold = 8
 
-    def filter_to_single(
-        self,
-        current_pose,
-        estimated_contact: Optional[bool] = None,
-        current_time: float = None,
-    ):
-        """
-        current_pose: [x, y, z, rx, ry, rz, rw]
-        Filters the foot contact state from a noisy state estimator using a temporal method.
-        It'll preserve only one contact state in a sequence of contact states.
-        Not useful in my case.
-        """
-
-        # Add to the buffer
-        current_pose = np.array(current_pose)
-        if len(self.poses) > self.max_poses_window:
-            self.poses = self.poses[-self.max_poses_window :]
-            self.filtered_poses = self.filtered_poses[-self.max_poses_window :]
-            plot_foot_data(self)
-
-        filtered_contact = False
-        if estimated_contact:
-            self.continuous_contact_count += 1
-            if self.continuous_contact_count >= self.contact_threshold:
-                filtered_contact = True
-        else:
-            self.continuous_contact_count = 0
-        # Check for the duration since last contact
-        if estimated_contact and self.last_contact_position is not None:
-            time_since_last_contact = current_time - self.last_contact_time
-            is_short_duration = time_since_last_contact < self.min_contact_duration
-            xy_distance = np.linalg.norm(
-                current_pose[:2] - self.last_contact_position[:2]
-            )
-
-            # Check rising motion in the last few steps
-            if len(self.poses) >= self.steps_to_compare:
-                recent_z_positions = [
-                    pose[0][2] for pose in self.poses[-self.steps_to_compare :]
-                ]
-                if all(current_pose[2] > z for z in recent_z_positions):
-                    self.poses.append((current_pose, estimated_contact, current_time))
-                    self.filtered_poses.append((current_pose, False, current_time))
-                    return (
-                        False  # Foot is consistently rising, unlikely to be in contact
-                    )
-
-            if is_short_duration or xy_distance < self.max_xy_distance:
-                self.poses.append((current_pose, estimated_contact, current_time))
-                self.filtered_poses.append((current_pose, False, current_time))
-                return False
-
-        # Update last contact details if current state is a contact
-        if filtered_contact:
-            self.last_contact_time = current_time
-            self.last_contact_position = current_pose
-        self.filtered_poses.append((current_pose, filtered_contact, current_time))
-        self.poses.append((current_pose, estimated_contact, current_time))
-
-        return filtered_contact
-
     def filter(
         self,
         current_pose,

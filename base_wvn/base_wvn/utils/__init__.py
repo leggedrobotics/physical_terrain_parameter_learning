@@ -15,7 +15,6 @@ from .meshes import (
     make_polygon_from_points,
 )
 from .dinov2_interface import Dinov2Interface
-from .plotting import get_img_from_fig
 from .visualizer import (
     plot_overlay_image,
     plot_image,

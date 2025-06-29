@@ -59,12 +59,12 @@ class Manager:
             self._main_graph = BaseGraph(edge_distance=self._edge_dist_thr_main_graph)
         else:
             self._main_graph = MaxElementsGraph(
-                edge_distance=self._edge_dist_thr_main_graph, max_elements=20
+                edge_distance=self._edge_dist_thr_main_graph, max_elements=80
             )
 
         # Visualization node
         self._vis_main_node = None
-        self._graph_distance = None
+        self.distance_between_last_main_node_and_last_sub_node = None
 
         # Mutex
         self._learning_lock = Lock()
@@ -156,7 +156,7 @@ class Manager:
         last_main_node = self._main_graph.get_last_node()
         last_sub_node = self.last_sub_node
         if last_main_node is not None and last_sub_node is not None:
-            self._graph_distance = last_main_node.distance_to(last_sub_node)
+            self.distance_between_last_main_node_and_last_sub_node = last_main_node.distance_to(last_sub_node)
 
     @accumulate_time
     def add_main_node(self, node: MainNode, verbose: bool = False, logger=None):
@@ -205,7 +205,7 @@ class Manager:
                 self.project_between_nodes(
                     [node], subnodes, logger=logger, sub2mains=False
                 )
-
+            self.update_visualization_node()
             return True
         else:
             return False

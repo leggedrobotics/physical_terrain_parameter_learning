@@ -42,7 +42,7 @@ class Dinov2Interface:
         return transform
 
     @torch.no_grad()
-    def inference(self, img: torch.tensor):
+    def inference(self, img: torch.Tensor):
         # check if it has a batch dim or not
         if img.dim() == 3:
             img = img.unsqueeze(0)

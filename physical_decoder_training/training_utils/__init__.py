@@ -5,5 +5,5 @@
 #
 #
 from . import dataset_analysis
-from . import decoder
-from . import decoder_config
+from . import lightning_wrapper
+from . import run_config

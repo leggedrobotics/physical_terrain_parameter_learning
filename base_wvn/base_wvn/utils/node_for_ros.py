@@ -10,12 +10,12 @@ Main node to process ros messages, publish the relevant topics, train the model.
 
 from base_wvn import ParamCollection
 from wild_visual_navigation_msgs.msg import AnymalState
-
+from nav_msgs.msg import  Odometry
+import ros_converter as rc
 import rospy
 import seaborn as sns
 
 import numpy as np
-from typing import Optional
 import signal
 import sys
 
@@ -48,9 +48,8 @@ class NodeForROS:
         self.visual_odom_topic = self.param.roscfg.visual_odom_topic
         self.phy_temp_topic = self.param.roscfg.phy_decoder_temp_topic
         # Frames
-        self.fixed_frame = self.param.roscfg.fixed_frame
+        self.world_frame = self.param.roscfg.world_frame
         self.base_frame = self.param.roscfg.base_frame
-        self.footprint_frame = self.param.roscfg.footprint_frame
 
         # Robot dimensions
         self.robot_length = self.param.roscfg.robot_length
@@ -60,8 +59,8 @@ class NodeForROS:
         self.foot_radius = self.param.roscfg.foot_radius
 
         # THREAD PARAMETERS
-        self.image_callback_rate = self.param.thread.image_callback_rate
-        self.proprio_callback_rate = self.param.thread.proprio_callback_rate
+        self.camera_callback_rate = self.param.thread.camera_callback_rate
+        self.supervision_signal_callback_rate = self.param.thread.supervision_signal_callback_rate
         self.learning_thread_rate = self.param.thread.learning_rate
         self.logging_thread_rate = self.param.thread.logging_rate
 
@@ -104,66 +103,28 @@ class NodeForROS:
         else:
             raise ValueError("pub_pred_as_layer must be either 'single' or 'RGB'")
 
-    def query_tf(
-        self,
-        parent_frame: str,
-        child_frame: str,
-        stamp: Optional[rospy.Time] = None,
-        from_message: Optional[AnymalState] = None,
-    ):
-        """Helper function to query TFs
-
-        Args:
-            parent_frame (str): Frame of the parent TF
-            child_frame (str): Frame of the child
-            from_message (AnymalState, optional): AnymalState message containing the TFs
+    def get_pose_base_in_world(self, state_msg: AnymalState, visual_odom_msg: Odometry) -> np.ndarray:
+        """ Get the pose of the base in world frame
         """
-        if from_message is None:
-            # error, must have from_message
-            raise ValueError("Must provide from_message")
+        if self.use_vo:
+            return self.get_pose_base_in_world_from_slam(visual_odom_msg)
         else:
-            # New behavior: extract the TF from the AnymalState message
-            if child_frame not in self.feet_list:
-                for frame_transform in from_message.frame_transforms:
-                    if (
-                        frame_transform.header.frame_id == parent_frame
-                        and frame_transform.child_frame_id == child_frame
-                    ):
-                        trans = (
-                            frame_transform.transform.translation.x,
-                            frame_transform.transform.translation.y,
-                            frame_transform.transform.translation.z,
-                        )
-                        rot = np.array(
-                            [
-                                frame_transform.transform.rotation.x,
-                                frame_transform.transform.rotation.y,
-                                frame_transform.transform.rotation.z,
-                                frame_transform.transform.rotation.w,
-                            ]
-                        )
-                        rot /= np.linalg.norm(rot)
-                        return (trans, tuple(rot))
-            else:
-                for foot_transform in from_message.contacts:
-                    if (
-                        foot_transform.name == child_frame
-                        and foot_transform.header.frame_id == parent_frame
-                    ):
-                        trans = (
-                            foot_transform.position.x,
-                            foot_transform.position.y,
-                            foot_transform.position.z,
-                        )
-                        # FOOT is merely a point, no rotation
-                        rot = np.array([0, 0, 0, 1])
-                        return (trans, tuple(rot))
+            return self.get_pose_base_in_world_from_state_estimator(state_msg)
 
-            # If the requested TF is not found in the message
-            # rospy.logwarn(f"Couldn't find tf between {parent_frame} and {child_frame} in the provided message")
-            raise ValueError(
-                f"Couldn't find tf between {parent_frame} and {child_frame} in the provided message"
-            )
+    def get_pose_base_in_world_from_state_estimator(self, state_msg: AnymalState) -> np.ndarray:
+        """ From proprioceptive state estimator
+        """
+        transform = state_msg.pose
+        pose_base_in_world = rc.msg_to_se3(transform)
+        return pose_base_in_world.astype(np.float32)
+        
+    def get_pose_base_in_world_from_slam(self, visual_odom_msg: Odometry) -> np.ndarray:
+        """ From SLAM system, visual_odom_msg: from visual odom frame to lidar frame
+        """
+        pose_lidar_in_world = rc.msg_to_se3(visual_odom_msg)
+        pose_base_in_lidar = np.linalg.inv(self.lidar_in_base)
+        pose_base_in_world = pose_lidar_in_world @ pose_base_in_lidar
+        return pose_base_in_world.astype(np.float32)
 
     def shutdown_callback(self, *args, **kwargs):
         print(f"Node killed {args}")

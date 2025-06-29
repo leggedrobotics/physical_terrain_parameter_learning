@@ -52,7 +52,7 @@ class ConfidenceGenerator(torch.nn.Module):
         else:
             raise ValueError(f"Method {method} not implemented")
 
-    def update_running_mean(self, x: torch.tensor, x_positive: torch.tensor):
+    def update_running_mean(self, x: torch.Tensor, x_positive: torch.Tensor):
         # We assume the positive samples' loss follows a Gaussian distribution
         # We estimate the parameters empirically
         if x_positive.device != self.device:
@@ -87,13 +87,13 @@ class ConfidenceGenerator(torch.nn.Module):
     def get_dict(self):
         return {"mean": self.mean, "var": self.var, "std": self.std}
 
-    def forward(self, x: torch.tensor):
+    def forward(self, x: torch.Tensor):
         return self.update(x)
 
     def update(
         self,
-        x: torch.tensor,
-        x_positive: torch.tensor,
+        x: torch.Tensor,
+        x_positive: torch.Tensor,
         step: int,
         log_step: bool = False,
     ):
@@ -125,7 +125,7 @@ class ConfidenceGenerator(torch.nn.Module):
 
         return output
 
-    def inference_without_update(self, x: torch.tensor):
+    def inference_without_update(self, x: torch.Tensor):
         if x.device != self.mean.device:
             x = x.to(self.mean.device)
 

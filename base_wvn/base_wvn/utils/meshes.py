@@ -229,7 +229,7 @@ def make_dense_plane(x=None, y=None, z=None, pose=torch.eye(4), grid_size=5):
     return transform_points(pose, points[None])[0]
 
 
-# def make_polygon_from_points(points: torch.tensor, grid_size=10):
+# def make_polygon_from_points(points: torch.Tensor, grid_size=10):
 #     B, D = points.shape
 #     finer_points = []
 #     w_steps = torch.linspace(0, 1, steps=grid_size).to(points.device)

@@ -17,7 +17,7 @@ class BaseNode:
     _name = "base_node"
 
     def __init__(
-        self, timestamp: float = 0.0, pose_base_in_world: torch.tensor = torch.eye(4)
+        self, timestamp: float = 0.0, pose_base_in_world: torch.Tensor = torch.eye(4)
     ):
         assert isinstance(pose_base_in_world, torch.Tensor)
 
@@ -102,7 +102,7 @@ class BaseNode:
         return self._timestamp
 
     @pose_base_in_world.setter
-    def pose_base_in_world(self, pose_base_in_world: torch.tensor):
+    def pose_base_in_world(self, pose_base_in_world: torch.Tensor):
         self._pose_base_in_world = pose_base_in_world
 
     @timestamp.setter
@@ -124,13 +124,13 @@ class MainNode(BaseNode):
     def __init__(
         self,
         timestamp: float = 0.0,
-        pose_base_in_world: torch.tensor = torch.eye(4),
-        pose_cam_in_world: torch.tensor = None,
-        image: torch.tensor = None,
+        pose_base_in_world: torch.Tensor = torch.eye(4),
+        pose_cam_in_world: torch.Tensor = None,
+        image: torch.Tensor = None,
         image_projector: ImageProjector = None,
         features: Union[torch.tensor, dict] = None,
         feature_type: str = None,
-        segments: torch.tensor = None,
+        segments: torch.Tensor = None,
         camera_name="cam",
         use_for_training=True,
         phy_dim: int = 2,
@@ -471,10 +471,10 @@ class SubNode(BaseNode):
     def __init__(
         self,
         timestamp: float = 0,
-        pose_base_in_world: torch.tensor = torch.eye(4),
-        phy_pred: torch.tensor = None,
-        feet_planes: torch.tensor = None,
-        feet_contact: torch.tensor = None,
+        pose_base_in_world: torch.Tensor = torch.eye(4),
+        phy_pred: torch.Tensor = None,
+        feet_planes: torch.Tensor = None,
+        feet_contact: torch.Tensor = None,
     ):
         assert isinstance(pose_base_in_world, torch.Tensor)
         assert len(feet_contact.shape) == 1

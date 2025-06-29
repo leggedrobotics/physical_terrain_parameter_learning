@@ -221,21 +221,21 @@ class FeatureExtractor:
         self._device = device
         self.extractor.change_device(device)
 
-    def compute_segments(self, img: torch.tensor, **kwargs):
+    def compute_segments(self, img: torch.Tensor, **kwargs):
         if self._segmentation_type == "pixel":
             seg = self.segment_pixelwise(img, **kwargs)
         elif self._segmentation_type == "slic":
             seg = self.segment_slic(img, **kwargs)
         return seg
 
-    def segment_pixelwise(self, img: torch.tensor, **kwargs):
+    def segment_pixelwise(self, img: torch.Tensor, **kwargs):
         # Generate pixel-wise segmentation
         B, C, H, W = img.shape
         seg = torch.arange(0, H * W, 1).reshape(H, W).to(self._device)
         # seg = seg.unsqueeze(0).repeat(B, 1, 1)
         return seg
 
-    def segment_slic(self, img: torch.tensor, **kwargs):
+    def segment_slic(self, img: torch.Tensor, **kwargs):
         # transform image to numpy
         B, C, H, W = img.shape
         img = img.permute(0, 2, 3, 1)
@@ -243,7 +243,7 @@ class FeatureExtractor:
         seg = self.slic.iterate(np.uint8(np.ascontiguousarray(img_np) * 255))
         return torch.from_numpy(seg).to(self._device).type(torch.long)
 
-    def compute_features(self, img: torch.tensor, **kwargs):
+    def compute_features(self, img: torch.Tensor, **kwargs):
         img_internal = img.clone()
         B, C, H, W = img_internal.shape
 
@@ -264,7 +264,7 @@ class FeatureExtractor:
     def sparsify_features(
         self,
         dense_features: Union[torch.Tensor, Dict[str, torch.Tensor]],
-        seg: torch.tensor,
+        seg: torch.Tensor,
         cumsum_trick=False,
     ):
         """Sparsify features

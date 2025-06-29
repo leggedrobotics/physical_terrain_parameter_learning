@@ -59,12 +59,11 @@ class ParamCollection(Serializable):
         # camera_topic: str = "/wide_angle_camera_front/image_color_rect/compressed"
         # camera_info_topic: str = "/wide_angle_camera_front/camera_info"
 
-        use_vo: bool = False
+        use_vo: bool = True
         visual_odom_topic: str = "/open3d_slam/scan2map_odometry"
 
-        fixed_frame: str = "odom"
+        world_frame: str = "odom"
         base_frame: str = "base"
-        footprint_frame: str = "footprint"
 
         robot_length: float = 0.930
         robot_height: float = 0.890
@@ -124,8 +123,8 @@ class ParamCollection(Serializable):
     class ThreadParams:
         """Parameters for the threads."""
 
-        image_callback_rate: float = 1.0
-        proprio_callback_rate: float = 4.0
+        camera_callback_rate: float = 1.0
+        supervision_signal_callback_rate: float = 4.0
         learning_rate: float = 2
         logging_rate: float = 0.5
 
@@ -147,9 +146,7 @@ class ParamCollection(Serializable):
     class LoggerParams:
         name: str = "neptune"
         neptune_project_name: str = "RSL/WVN"
-        vis_callback: bool = True
-        vis_mgraph: bool = True
-        vis_snodes: bool = True
+        vis_new_node: bool = True
 
     logger: LoggerParams = LoggerParams()
 
@@ -201,7 +198,7 @@ class ParamCollection(Serializable):
 
         update_range_main_graph: float = 5  # 50
         cut_threshold: float = 5.0
-        edge_dist_thr_main_graph: float = 1.0  # 0.2
+        edge_dist_thr_main_graph: float = 0.2  # 0.2
 
         use_sub_graph: bool = False  # only use when the robot is walking reversely
         edge_dist_thr_sub_graph: float = 0.05

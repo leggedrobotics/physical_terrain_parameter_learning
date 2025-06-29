@@ -4,5 +4,5 @@
 # See LICENSE file in the project root for details.
 #
 #
-from .normalizer import EmpiricalNormalization, RunningMeanStd
+from .normalizer import EmpiricalNormalization
 from .mlp import MLP

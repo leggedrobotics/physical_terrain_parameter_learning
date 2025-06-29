@@ -88,7 +88,7 @@ class EmpiricalNormalization(nn.Module):
     def _std_inverse(self):
         if self._is_std_cached is False:
             self._cached_std_inverse = (self._var + self.eps) ** -0.5
-
+            self._is_std_cached = True
         return self._cached_std_inverse
 
     def experience(self, x):
@@ -96,8 +96,10 @@ class EmpiricalNormalization(nn.Module):
 
         if self.until is not None and self.count >= self.until:
             return
-
-        count_x = x.shape[self.batch_axis]
+        if isinstance(self.batch_axis, tuple):
+            count_x = x.shape[self.batch_axis[0]]
+        else:
+            count_x = x.shape[self.batch_axis]
         if count_x == 0:
             return
 
@@ -111,7 +113,11 @@ class EmpiricalNormalization(nn.Module):
         delta_mean = mean_x - self._mean
         self._mean += rate * delta_mean
         self._var += rate * (var_x - self._var + delta_mean * (mean_x - self._mean))
-
+        if torch.isnan(self._var).any():
+            print("var contains nan value")
+            x_max = torch.max(x)
+            x_min = torch.min(x)
+            ss = torch.any(torch.isnan(x))
         # clear cache
         self._is_std_cached = False
 
@@ -129,6 +135,20 @@ class EmpiricalNormalization(nn.Module):
         if not x.is_cuda:
             self._is_std_cached = False
         normalized = (x - self._mean) * self._std_inverse
+
+        if torch.isnan(x).any():
+            print("x contains nan value")
+        if torch.isnan(self._mean).any():
+            print("mean contains nan value")
+        if torch.isnan(self._var).any():
+            print("var contains nan value")
+        # if torch.any(self._var == 0):
+        #     print('var contains zero value')
+        if torch.isnan(self._std_inverse).any():
+            print("std inverse contains nan value")
+        if torch.isnan(normalized).any():
+            print("normalized contains nan value")
+
         if self.clip_threshold is not None:
             normalized = torch.clamp(
                 normalized, -self.clip_threshold, self.clip_threshold
@@ -151,70 +171,3 @@ class EmpiricalNormalization(nn.Module):
 
     def set_validation_mode(self):
         self._is_training = False
-
-
-class RunningMeanStd(object):
-    def __init__(self, epsilon=1e-4, shape=()):
-        """
-        calulates the running mean and std of a data stream
-        https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance#Parallel_algorithm
-
-        :param epsilon: (float) helps with arithmetic issues
-        :param shape: (tuple) the shape of the data stream's output
-        """
-        self.mean = np.zeros(shape, "float32")
-        self.var = np.ones(shape, "float32")
-        self.count = epsilon
-
-    def update(self, arr):
-        if np.isnan(arr).any():
-            print("array contains nan value")
-            print("array size is", arr.shape)
-            print("nan index", list(map(tuple, np.where(np.isnan(arr[0])))))
-        batch_mean = np.mean(arr, axis=0)
-        batch_var = np.var(arr, axis=0)
-        batch_count = arr.shape[0]
-        if self.count < 100000000:
-            self.update_from_moments(batch_mean, batch_var, batch_count)
-
-    def update_from_moments(self, batch_mean, batch_var, batch_count):
-        delta = batch_mean - self.mean
-        tot_count = self.count + batch_count
-
-        new_mean = self.mean + delta * batch_count / tot_count
-        m_a = self.var * self.count
-        m_b = batch_var * batch_count
-        m_2 = (
-            m_a
-            + m_b
-            + np.square(delta) * self.count * batch_count / (self.count + batch_count)
-        )
-        new_var = m_2 / (self.count + batch_count)
-
-        new_count = batch_count + self.count
-
-        self.mean = new_mean
-        self.var = new_var
-        self.count = new_count
-
-    def normalize(self, obs, clip):
-        normalized_obs = np.clip(
-            (obs - self.mean) / np.sqrt(self.var + 1e-8), -clip, clip
-        )
-        return normalized_obs
-
-    def save(self, dir_name, iteration, prefix=""):
-        mean_file_name = dir_name + "/mean" + prefix + str(iteration) + ".csv"
-        var_file_name = dir_name + "/var" + prefix + str(iteration) + ".csv"
-        count_file_name = dir_name + "/count" + prefix + str(iteration) + ".txt"
-        np.savetxt(mean_file_name, self.mean)
-        np.savetxt(var_file_name, self.var)
-        np.savetxt(count_file_name, np.array([self.count]))
-
-    def load(self, dir_name, iteration, prefix=""):
-        mean_file_name = dir_name + "/mean" + prefix + str(iteration) + ".csv"
-        var_file_name = dir_name + "/var" + prefix + str(iteration) + ".csv"
-        count_file_name = dir_name + "/count" + prefix + str(iteration) + ".txt"
-        self.mean = np.loadtxt(mean_file_name, dtype=np.float32)
-        self.var = np.loadtxt(var_file_name, dtype=np.float32)
-        self.count = np.loadtxt(count_file_name, dtype=np.float32)

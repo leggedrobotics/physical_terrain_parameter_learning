@@ -20,7 +20,7 @@ from base_wvn.graph_manager import Manager, MainNode, SubNode
 import ros_converter as rc
 import message_filters
 from sensor_msgs.msg import Image, CameraInfo, CompressedImage
-from std_msgs.msg import ColorRGBA, Float32
+from std_msgs.msg import ColorRGBA, Float32, Header
 from nav_msgs.msg import Path, Odometry
 from wild_visual_navigation_msgs.msg import AnymalState
 from geometry_msgs.msg import PoseStamped, TransformStamped
@@ -41,9 +41,9 @@ from termcolor import colored
 import PIL.Image
 import tf2_ros
 from pytictac import ClassTimer, accumulate_time
-from msg_to_transmatrix import msg_to_se3
 import datetime
 from copy import deepcopy
+from typing import Optional, Union
 
 
 class MainProcess(NodeForROS):
@@ -54,10 +54,9 @@ class MainProcess(NodeForROS):
         # Timers to control the rate of the callbacks
         self.start_time = rospy.get_time()
         self.last_image_ts = self.start_time
-        self.last_node_position = None
         self.last_supervision_ts = self.start_time
         self.image_buffer = {}
-        self.last_image_saved = self.start_time
+        self.last_image_saved_ts = self.start_time
         self.today = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
         # Init feature extractor
@@ -112,11 +111,11 @@ class MainProcess(NodeForROS):
 
         print("Main process node initialized!")
 
-    def shutdown_callback(self, *args, **kwargs):
+    def shutdown_callback(self, *args, **kwargs) -> None:
         self.run_status_thread = False
         self.status_thread_stop_event.set()
         self.status_thread.join()
-        self.visualize_image_overlay()
+        self.visualize_self_supervision_label_image_overlay()
         if self.param.general.timestamp:
             print(self.timer)
 
@@ -146,17 +145,8 @@ class MainProcess(NodeForROS):
 
         sys.exit(0)
 
-    def clear_screen(self):
-        # For Windows
-        if os.name == "nt":
-            _ = os.system("cls")
-        # For Linux and Mac
-        else:
-            _ = os.system("clear")
-
-    def status_thread_loop(self):
+    def status_thread_loop(self) -> None:
         # Log loop
-        # TODO: make the table prettier, into columns...
         while self.run_status_thread:
             self.status_thread_stop_event.wait(timeout=0.01)
             if self.status_thread_stop_event.is_set():
@@ -183,30 +173,22 @@ class MainProcess(NodeForROS):
                         x.add_row([k, colored(round(d, 2), c)])
                     else:
                         x.add_row([k, v])
-            # self.clear_screen()
+
             print(x)
             time.sleep(0.1)
-            # try:
-            #    rate.sleep()
-            # except Exception as e:
-            #    rate = rospy.Rate(self.ros_params.status_thread_rate)
-            #    print("Ignored jump pack in time!")
+
         self.status_thread_stop_event.clear()
 
-    def ros_init(self):
+    def ros_init(self) -> None:
         """
         start ros subscribers and publishers and filter/process topics
         """
-
-        if self.verbose:
-            # DEBUG Logging
-            with self.log_data["Lock"]:
-                self.log_data["time_last_model"] = -1
-                self.log_data["num_model_updates"] = -1
-                self.log_data["num_images"] = 0
-                self.log_data["time_last_image"] = -1
-                self.log_data["image_callback"] = "N/A"
-                self.log_data["prediction_done"] = 0
+        self.log("time_last_model", -1)
+        self.log("num_model_updates", -1)
+        self.log("num_images", 0)
+        self.log("time_last_image", -1)
+        self.log("camera_callback", "N/A")
+        self.log("prediction_done", 0)
 
         print("Start waiting for Camera topic being published!")
         # Camera info
@@ -260,7 +242,7 @@ class MainProcess(NodeForROS):
             visual_odom_sub = message_filters.Subscriber(
                 self.visual_odom_topic, Odometry
             )
-            self.fixed_frame = "map_o3d"
+            self.world_frame = "map_o3d"
             sync = message_filters.ApproximateTimeSynchronizer(
                 [camera_sub, anymal_state_sub, visual_odom_sub],
                 queue_size=200,
@@ -271,13 +253,13 @@ class MainProcess(NodeForROS):
             sync = message_filters.ApproximateTimeSynchronizer(
                 [camera_sub, anymal_state_sub], queue_size=200, slop=0.2
             )
-            sync.registerCallback(self.camera_callback_ori, self.camera_topic)
+            sync.registerCallback(self.camera_callback_no_vo, self.camera_topic)
 
         # Phy-decoder info subscriber
         phy_sub = rospy.Subscriber(
             self.param.roscfg.phy_decoder_output_topic,
             PhyDecoderOutput,
-            self.phy_decoder_callback,
+            self.supervision_signal_callback,
             queue_size=1,
         )
 
@@ -302,14 +284,12 @@ class MainProcess(NodeForROS):
             "/vd_pipeline/channel_info", ChannelInfo, queue_size=10
         )
         freq_pub = rospy.Publisher("/test", Float32, queue_size=10)
-        main_graph_pub = rospy.Publisher("/vd_pipeline/main_graph", Path, queue_size=10)
-        nodes_pub = rospy.Publisher("/vd_pipeline/nodes", Path, queue_size=10)
-        sub_node_pub = rospy.Publisher("/vd_pipeline/sub_node", Marker, queue_size=10)
-        latest_img_pub = rospy.Publisher(
-            "/vd_pipeline/latest_img", Marker, queue_size=10
+
+        latest_main_node = rospy.Publisher(
+            "/vd_pipeline/latest_main_node", Marker, queue_size=10
         )
-        latest_phy_pub = rospy.Publisher(
-            "/vd_pipeline/latest_phy", Marker, queue_size=10
+        latest_sub_node = rospy.Publisher(
+            "/vd_pipeline/latest_sub_node", Marker, queue_size=10
         )
         system_state_pub = rospy.Publisher(
             "/vd_pipeline/system_state", SystemState, queue_size=10
@@ -323,108 +303,85 @@ class MainProcess(NodeForROS):
         self.camera_handler["info_pub"] = info_pub
         self.camera_handler["channel_pub"] = channel_pub
         self.camera_handler["freq_pub"] = freq_pub
-        self.camera_handler["main_graph_pub"] = main_graph_pub
-        self.camera_handler["sub_node_pub"] = sub_node_pub
         self.camera_handler["system_state_pub"] = system_state_pub
-        self.camera_handler["latest_img_pub"] = latest_img_pub
-        self.camera_handler["latest_phy_pub"] = latest_phy_pub
-        self.camera_handler["nodes_pub"] = nodes_pub
-        pass
+        self.camera_handler["latest_main_node"] = latest_main_node
+        self.camera_handler["latest_sub_node"] = latest_sub_node
+
+    
+    def log(self, entry: str, msg:str) -> None:
+        """Grab the lock and log the message in verbose mode."""
+        if self.verbose:
+            with self.log_data["Lock"]:
+                self.log_data[entry] = msg
+
+    def is_bad_rate_with_log(self,current_timestamp_sec:float, last_timestamp_sec:float, rate_upper_limit:float, log_entry: str) -> bool:
+        """Here we output signal to outer loop if the current iteration above the rate upper limit:
+             True - too fast or jump back in time, skip this iteration
+             False - ok
+        """
+        current_interval_sec = current_timestamp_sec - last_timestamp_sec
+        current_rate= 1.0 / current_interval_sec if current_interval_sec != 0 else float("inf")
+
+        if current_rate <= 0.0:
+            self.log(log_entry, "skipping: jump back in time")
+            return True
+
+        elif current_rate > rate_upper_limit:
+            self.log(log_entry, "skipping: rate too high")
+            return True
+        else:
+            self.log(log_entry, "processing: rate ok")
+            return False
+
+    def debug_pub_camera_callback(self) -> None:
+        # pub for testing frequency
+        freq_pub = self.camera_handler["freq_pub"]
+        msg = Float32()
+        msg.data = 1.0
+        freq_pub.publish(msg)
+
 
     @accumulate_time
     def camera_callback(
         self,
         img_msg: CompressedImage,
         state_msg: AnymalState,
-        visual_odom_msg: Odometry,
+        visual_odom_msg: Optional[Odometry],
         cam: str,
-    ):
+    ) -> None:
         """
-        callback function for the anymal state subscriber
+        callback function for camera img, visual odometry msg can be None if self.use_vo is False
         """
         self.system_events["camera_callback_received"] = {
             "time": rospy.get_time(),
             "value": "message received",
         }
         try:
-            # Run the callback so as to match the desired rate
             ts = img_msg.header.stamp.to_sec()
-            if abs(ts - self.last_image_ts) < 1.0 / self.image_callback_rate:
-                if self.verbose:
-                    with self.log_data["Lock"]:
-                        self.log_data["image_callback"] = "skipping"
-                return
-            else:
-                if self.verbose:
-                    with self.log_data["Lock"]:
-                        self.log_data["image_callback"] = "processing"
-
-            self.log_data["ros_time_now"] = rospy.get_time()
-            if "debug" in self.mode:
-                # pub for testing frequency
-                freq_pub = self.camera_handler["freq_pub"]
-                msg = Float32()
-                msg.data = 1.0
-                freq_pub.publish(msg)
-
-            # load MLP and confidence generator params if possible,
-            # don't need it, just use the training model to predict, no need for save and reload
-            # self.load_model()
-
-            # prepare tf from base to camera
-            transform = state_msg.pose
-            trans = (
-                transform.pose.position.x,
-                transform.pose.position.y,
-                transform.pose.position.z,
-            )
-            rot = (
-                transform.pose.orientation.x,
-                transform.pose.orientation.y,
-                transform.pose.orientation.z,
-                transform.pose.orientation.w,
-            )
-            suc, pose_base_in_world = rc.ros_tf_to_numpy((trans, rot))
-
-            # calculate the world_in_map tf
-            world_in_map = (
-                msg_to_se3(visual_odom_msg)
-                @ np.linalg.inv(self.lidar_in_base)
-                @ np.linalg.inv(pose_base_in_world)
-            )
-            # switch to o3d_map from odom--base
-            pose_base_in_world = world_in_map @ pose_base_in_world
-            pose_base_in_world = pose_base_in_world.astype(np.float32)
-
-            # if self.last_node_position is not None:
-            #     dist=np.linalg.norm(pose_base_in_world[:3,3]-self.last_node_position)
-            #     if dist<self.param.graph.edge_dist_thr_main_graph:
-            #         with self.log_data["Lock"]:
-            #             self.log_data[f"image_callback"] = "skipping, mnode too close"
-            #         return
-            self.last_node_position = pose_base_in_world[:3, 3]
-            if self.param.logger.vis_callback:
-                self.visualize_callback(
-                    pose_base_in_world,
-                    ts,
-                    self.camera_handler["latest_img_pub"],
-                    "latest_img",
-                )
-
-            if not suc:
-                self.system_events["camera_callback_cancled"] = {
+            if self.is_bad_rate_with_log(ts,self.last_image_ts,self.camera_callback_rate,"camera_callback"):
+                self.system_events["camera_callback_cancelled"] = {
                     "time": rospy.get_time(),
-                    "value": "cancled due to pose_base_in_world",
+                    "value": "cancelled due to rate",
                 }
                 return
 
+            self.log("ros_time_now", rospy.get_time())  
+
+            # prepare tf from base to camera
+            pose_base_in_world = self.get_pose_base_in_world(state_msg, visual_odom_msg)
+
             # transform the camera pose from base to world
-            pose_cam_in_base = self.camera_in_base
-            pose_cam_in_world = np.matmul(pose_base_in_world, pose_cam_in_base)
+            pose_cam_in_world = np.matmul(pose_base_in_world, self.camera_in_base)
             self.camera_handler["pose_cam_in_world"] = pose_cam_in_world
 
-            # send tf , vis in rviz
-            # self.broadcast_tf_from_matrix(pose_cam_in_world,self.fixed_frame,"hdr_rear_camera")
+            # TODO: delete when pushing to github
+            if "debug" in self.mode:
+                # comment out if unneeded
+                # pub for testing frequency
+                self.debug_pub_camera_callback()
+                # send tf , vis in rviz
+                self.broadcast_tf_from_matrix(pose_cam_in_world,self.world_frame,"hdr_rear_camera")
+
 
             # prepare image
             img_torch = rc.ros_image_to_torch(img_msg, device=self.device)
@@ -440,13 +397,12 @@ class MainProcess(NodeForROS):
             )
 
             if self.manager._label_ext_mode:
-                if abs(ts - self.last_image_saved) > 10.0:
+                if abs(ts - self.last_image_saved_ts) > 10.0:
                     self.image_buffer[ts] = transformed_img
-                    self.last_image_saved = ts
-                    if self.verbose:
-                        with self.log_data["Lock"]:
-                            self.log_data["num_images"] += 1
-                            self.log_data["time_last_image"] = rospy.get_time()
+                    self.last_image_saved_ts = ts
+                    self.log("time_last_image", rospy.get_time())
+                    self.log("num_images", self.log_data["num_images"] + 1)
+
             main_node = MainNode(
                 timestamp=img_msg.header.stamp.to_sec(),
                 pose_base_in_world=torch.from_numpy(pose_base_in_world).to(self.device),
@@ -467,170 +423,27 @@ class MainProcess(NodeForROS):
             added_new_node = self.manager.add_main_node(
                 main_node, verbose=self.verbose, logger=self.log_data
             )
-            # if added_new_node:
-            # add for paper video
-            #self.update_prediction(main_node, ts, img_msg.header)
-            if self.param.logger.vis_mgraph:
-                # publish the main graph
-                self.visualize_main_graph()
-            if added_new_node:
-                self.manager.update_visualization_node()
-            # self.update_prediction(main_node, ts, img_msg.header)
-            if self.manager.subnodes_update is not None:
-                self.visualize_nodes(self.manager.subnodes_update)
-            with self.log_data["Lock"]:
-                if self.manager._graph_distance is not None:
-                    self.log_data["head dist of main/sub graph"] = "{:.2f}".format(
-                        self.manager._graph_distance.item()
-                    )
-            # self.visualize_image_overlay()
-            self.system_events["image_callback_state"] = {
-                "time": rospy.get_time(),
-                "value": "executed successfully",
-            }
-            self.last_image_ts = ts
-        except Exception as e:
-            traceback.print_exc()
-            print("error camera callback", e)
-            self.system_events["camera_callback_state"] = {
-                "time": rospy.get_time(),
-                "value": f"failed to execute {e}",
-            }
-        pass
 
-    @accumulate_time
-    def camera_callback_ori(
-        self, img_msg: CompressedImage, state_msg: AnymalState, cam: str
-    ):
-        """
-        callback function for the anymal state subscriber
-        """
-        self.system_events["camera_callback_received"] = {
-            "time": rospy.get_time(),
-            "value": "message received",
-        }
-        try:
-            # Run the callback so as to match the desired rate
-            ts = img_msg.header.stamp.to_sec()
-            if abs(ts - self.last_image_ts) < 1.0 / self.image_callback_rate:
-                if self.verbose:
-                    with self.log_data["Lock"]:
-                        self.log_data["image_callback"] = "skipping"
-                return
-            else:
-                if self.verbose:
-                    with self.log_data["Lock"]:
-                        self.log_data["image_callback"] = "processing"
+            if self.manager.distance_between_last_main_node_and_last_sub_node is not None:
+                self.log("head dist of main/sub graph", "{:.2f}".format(self.manager.distance_between_last_main_node_and_last_sub_node.item()))
 
-            self.log_data["ros_time_now"] = rospy.get_time()
-            if "debug" in self.mode:
-                # pub for testing frequency
-                freq_pub = self.camera_handler["freq_pub"]
-                msg = Float32()
-                msg.data = 1.0
-                freq_pub.publish(msg)
-
-            # load MLP and confidence generator params if possible,
-            # don't need it, just use the training model to predict, no need for save and reload
-            # self.load_model()
-
-            # prepare tf from base to camera
-            transform = state_msg.pose
-            trans = (
-                transform.pose.position.x,
-                transform.pose.position.y,
-                transform.pose.position.z,
-            )
-            rot = (
-                transform.pose.orientation.x,
-                transform.pose.orientation.y,
-                transform.pose.orientation.z,
-                transform.pose.orientation.w,
-            )
-            suc, pose_base_in_world = rc.ros_tf_to_numpy((trans, rot))
-
-            pose_base_in_world = pose_base_in_world.astype(np.float32)
-            if self.param.logger.vis_callback:
-                self.visualize_callback(
-                    pose_base_in_world,
-                    ts,
-                    self.camera_handler["latest_img_pub"],
-                    "latest_img",
-                )
-
-            if not suc:
-                self.system_events["camera_callback_cancled"] = {
-                    "time": rospy.get_time(),
-                    "value": "cancled due to pose_base_in_world",
-                }
-                return
-
-            # transform the camera pose from base to world
-            pose_cam_in_base = self.camera_in_base
-            pose_cam_in_world = np.matmul(pose_base_in_world, pose_cam_in_base)
-            self.camera_handler["pose_cam_in_world"] = pose_cam_in_world
-
-            # send tf , vis in rviz
-            # self.broadcast_tf_from_matrix(pose_cam_in_world,self.fixed_frame,"hdr_rear_camera")
-
-            # prepare image
-            img_torch = rc.ros_image_to_torch(img_msg, device=self.device)
-            img_torch = img_torch[None]
-            features, seg, transformed_img, compressed_feats = (
-                self.feat_extractor.extract(img_torch)
-            )
-
-            image_projector = ImageProjector(
-                K=self.camera_handler["K_scaled"],
-                h=self.camera_handler["H_scaled"],
-                w=self.camera_handler["W_scaled"],
-            )
-
-            if self.manager._label_ext_mode:
-                if abs(ts - self.last_image_saved) > 10.0:
-                    self.image_buffer[ts] = transformed_img
-                    self.last_image_saved = ts
-                    if self.verbose:
-                        with self.log_data["Lock"]:
-                            self.log_data["num_images"] += 1
-                            self.log_data["time_last_image"] = rospy.get_time()
-            main_node = MainNode(
-                timestamp=img_msg.header.stamp.to_sec(),
-                pose_base_in_world=torch.from_numpy(pose_base_in_world).to(self.device),
-                pose_cam_in_world=torch.from_numpy(pose_cam_in_world).to(self.device),
-                image=transformed_img,
-                features=features
-                if self.segmentation_type != "pixel"
-                else compressed_feats,
-                feature_type=self.feature_type,
-                segments=seg,
-                image_projector=image_projector,
-                camera_name=cam,
-                use_for_training=self.param.graph.use_for_training,
-                phy_dim=self.param.feat.physical_dim,
-            )
-
-            # add to main graph
-            added_new_node = self.manager.add_main_node(
-                main_node, verbose=self.verbose, logger=self.log_data
-            )
-            # if added_new_node:
-            #     # add for paper video
+            # ----- visualization -----
+            # 1. publish the masked dense prediction from the latest img received, it is slow by publishing images
             self.update_prediction(main_node, ts, img_msg.header)
-            if self.param.logger.vis_mgraph:
-                # publish the main graph
-                self.visualize_main_graph()
-            if added_new_node:
-                self.manager.update_visualization_node()
-            if self.manager.subnodes_update is not None:
-                self.visualize_nodes(self.manager.subnodes_update)
-            with self.log_data["Lock"]:
-                if self.manager._graph_distance is not None:
-                    self.log_data["head dist of main/sub graph"] = "{:.2f}".format(
-                        self.manager._graph_distance.item()
-                    )
 
-            self.system_events["image_callback_state"] = {
+            # 2. publish a green cube marker where the latest main node is
+            if self.param.logger.vis_new_node and added_new_node:
+                self.visualize_new_node(
+                    pose_base_in_world,
+                    ts,
+                    self.camera_handler["latest_main_node"],
+                    "latest_main_node",
+                )
+                
+            # 3. publish the label image overlay on vis_node, very slow so commented
+            # self.visualize_self_supervision_label_image_overlay()
+
+            self.system_events["camera_callback_state"] = {
                 "time": rospy.get_time(),
                 "value": "executed successfully",
             }
@@ -642,42 +455,34 @@ class MainProcess(NodeForROS):
                 "time": rospy.get_time(),
                 "value": f"failed to execute {e}",
             }
-        pass
 
     @accumulate_time
-    def phy_decoder_callback(self, phy_output: PhyDecoderOutput):
-        self.system_events["phy_decoder_callback_received"] = {
+    def camera_callback_no_vo(
+        self, img_msg: CompressedImage, state_msg: AnymalState, cam: str
+    ) -> None:
+        self.camera_callback(img_msg, state_msg, None, cam)
+ 
+
+    @accumulate_time
+    def supervision_signal_callback(self, phy_output: PhyDecoderOutput) -> None:
+        self.system_events["supervision_signal_callback_received"] = {
             "time": rospy.get_time(),
             "value": "message received",
         }
         try:
-            ts = phy_output.header.stamp.to_sec()
-            if abs(ts - self.last_supervision_ts) < 1.0 / self.proprio_callback_rate:
-                self.system_events["phy_decoder_callback_cancled"] = {
+            ts = phy_output.header.stamp.to_sec()             
+            if self.is_bad_rate_with_log(ts,self.last_supervision_ts,self.supervision_signal_callback_rate,"supervision_signal_callback"):
+                self.system_events["supervision_signal_callback_cancelled"] = {
                     "time": rospy.get_time(),
-                    "value": "cancled due to rate",
+                    "value": "cancelled due to rate",
                 }
-                if self.verbose:
-                    with self.log_data["Lock"]:
-                        self.log_data["phy_decoder_callback"] = "skipping"
                 return
-            else:
-                if self.verbose:
-                    with self.log_data["Lock"]:
-                        self.log_data["phy_decoder_callback"] = "processing"
             self.last_supervision_ts = ts
 
-            pose_base_in_world = rc.ros_pose_to_torch(
+            pose_base_in_world = rc.pose_msg_to_se3_torch(
                 phy_output.base_pose, device=self.device
             )
 
-            if self.param.logger.vis_callback:
-                self.visualize_callback(
-                    pose_base_in_world,
-                    ts,
-                    self.camera_handler["latest_phy_pub"],
-                    "latest_phy",
-                )
 
             fric = torch.tensor(phy_output.prediction[:4]).to(self.device)
             stiff = torch.tensor(phy_output.prediction[4:]).to(self.device)
@@ -701,32 +506,38 @@ class MainProcess(NodeForROS):
             )
 
             # add subnode
-            self.manager.add_sub_node(sub_node, logger=self.log_data)
+            added_sub_node = self.manager.add_sub_node(sub_node, logger=self.log_data)
+
+            # ----- visualization -----
+            # 1. publish a yellow sphere marker where the latest sub node is
+            if self.param.logger.vis_new_node and added_sub_node:
+                self.visualize_new_node(
+                    pose_base_in_world,
+                    ts,
+                    self.camera_handler["latest_sub_node"],
+                    "latest_sub_node",
+                )
 
             self.sub_step += 1
 
-            if self.param.logger.vis_snodes:
-                self.visualize_sub_node()
-            self.system_events["phy_decoder_callback_state"] = {
+            self.system_events["supervision_signal_callback_state"] = {
                 "time": rospy.get_time(),
                 "value": "executed successfully",
             }
 
         except Exception as e:
             traceback.print_exc()
-            print("error phy_decoder_callback", e)
-            self.system_events["phy_decoder_callback_state"] = {
+            print("error supervision_signal_callback", e)
+            self.system_events["supervision_signal_callback_state"] = {
                 "time": rospy.get_time(),
                 "value": f"failed to execute {e}",
             }
 
-            raise Exception("Error in phy_decoder_callback")
+            raise Exception("Error in supervision_signal_callback")
 
-        pass
 
     @accumulate_time
-    def learning_thread_loop(self):
-        # rate = rospy.Rate(self.param.thread.learning_rate)
+    def learning_thread_loop(self) -> None:
         i = 0
         # Learning loop
         while True:
@@ -738,15 +549,14 @@ class MainProcess(NodeForROS):
             if self.learning_thread_stop_event.is_set():
                 rospy.logwarn("Stopped learning thread")
                 break
-            with self.log_data["Lock"]:
-                self.log_data["learning_thread_step"] = i
+            self.log("learning_thread_step", i)
 
             if not self.param.general.online_training:
                 self.manager.pause_learning = True
             res = self.manager.train()
 
-            with self.log_data["Lock"]:
-                self.log_data["training_step"] = self.manager.step
+            self.log("training_step", self.manager.step)
+
             step_time = rospy.get_time()
             step = self.manager.step
             # Publish loss
@@ -759,7 +569,6 @@ class MainProcess(NodeForROS):
             system_state.step = step
             system_state.header.stamp = rospy.Time.from_sec(step_time)
             self.camera_handler["system_state_pub"].publish(system_state)
-            # rate.sleep()
             # save model every 10 steps, comment for paper video
             # if i % 10== 0:
             #     if self.param.general.online_training:
@@ -784,7 +593,7 @@ class MainProcess(NodeForROS):
         self.learning_thread_stop_event.clear()
 
     @accumulate_time
-    def update_prediction(self, node: MainNode, ts=None, header=None):
+    def update_prediction(self, node: MainNode, ts:Optional[float]=None, header:Optional[Header]=None) -> None:
         if not hasattr(node, "image") or node.image is None:
             return
         img = node.image.to(self.device)
@@ -848,9 +657,7 @@ class MainProcess(NodeForROS):
             img_msg = bridge.cv2_to_imgmsg(last_image_np, "bgr8")
 
         # calculate phy loss
-        # phy_loss_dict=compute_pred_phy_loss(img,conf_mask,pred_phy_mask=pred_phy_mask,ori_phy_mask=ori_phy_mask)
-        with self.log_data["Lock"]:
-            self.log_data["prediction_done"] += 1
+        self.log("prediction_done", self.log_data["prediction_done"] + 1)
 
         img_msg.header = header
 
@@ -871,7 +678,7 @@ class MainProcess(NodeForROS):
         self.camera_handler["channel_pub"].publish(channel_info_msg)
 
     @accumulate_time
-    def broadcast_tf_from_matrix(self, matrix, parent_frame, child_frame):
+    def broadcast_tf_from_matrix(self, matrix:Union[np.ndarray,torch.Tensor], parent_frame:str, child_frame:str) -> None:
         br = self.camera_br
         t = TransformStamped()
 
@@ -879,7 +686,7 @@ class MainProcess(NodeForROS):
             pass
         elif isinstance(matrix, np.ndarray):
             matrix = torch.from_numpy(matrix)
-        pose = rc.torch_to_ros_pose(matrix)
+        pose = rc.se3_to_pose_msg(matrix)
         # Extract translation
         t.header.stamp = rospy.Time.now()
         t.header.frame_id = parent_frame
@@ -898,98 +705,37 @@ class MainProcess(NodeForROS):
 
         br.sendTransform(t)
 
-    def load_model(self):
-        """
-        load the model from the checkpoint
-        """
-        try:
-            self.step += 1
-            if self.step % 10 == 0:
-                print(f"Loading model from checkpoint {self.step}")
-
-                pass
-        except Exception as e:
-            if self.verbose:
-                print(f"Model Loading Failed: {e}")
-
-    def visualize_sub_node(self):
-        # publish the last sub node
-        msg = Marker()
-        msg.header.frame_id = self.fixed_frame
-        msg.header.stamp = rospy.Time.from_sec(self.manager.last_sub_node.timestamp)
-        msg.pose = rc.torch_to_ros_pose(self.manager.last_sub_node.pose_base_in_world)
-        msg.type = Marker.SPHERE
-        msg.action = Marker.ADD
-        msg.scale.x = 0.2  # size in meters
-        msg.scale.y = 0.2
-        msg.scale.z = 0.2
-        msg.id = self.sub_step
-        # Set the color of the marker
-        msg.color = ColorRGBA(1.0, 1.0, 0.0, 1.0)
-        self.camera_handler["sub_node_pub"].publish(msg)
-
-    def visualize_callback(self, pose, stamp, handle, name):
+    def visualize_new_node(self, pose:Union[np.ndarray,torch.Tensor], stamp_sec:float, handle:rospy.Publisher, name:str) -> None: 
         # publish the last sub node
         if isinstance(pose, np.ndarray):
             pose = torch.from_numpy(pose)
         msg = Marker()
-        msg.header.frame_id = self.fixed_frame
-        msg.header.stamp = rospy.Time.from_sec(stamp)
-        msg.pose = rc.torch_to_ros_pose(pose)
-        msg.type = Marker.CUBE
+        msg.header.frame_id = self.world_frame
+        msg.header.stamp = rospy.Time.from_sec(stamp_sec)
+        msg.pose = rc.se3_to_pose_msg(pose)
         msg.action = Marker.ADD
 
         msg.id = self.sub_step
         # Set the color of the marker
-        if name == "latest_img":
+        if name == "latest_main_node":
+            msg.type = Marker.CUBE
             msg.scale.x = 0.2  # size in meters
             msg.scale.y = 0.2
             msg.scale.z = 0.2
             msg.color = ColorRGBA(0.0, 1.0, 0.0, 1.0)
-        elif name == "latest_phy":
+        elif name == "latest_sub_node":
+            msg.type = Marker.SPHERE
             msg.scale.x = 0.1  # size in meters
             msg.scale.y = 0.1
             msg.scale.z = 0.1
             msg.color = ColorRGBA(1.0, 1.0, 0.0, 1.0)
         handle.publish(msg)
 
-    def visualize_nodes(self, nodes):
-        """Publishes all the visualizations related to the nodes"""
-        now = rospy.Time.from_sec(self.last_image_ts)
 
-        # publish main graph
-        nodes_msg = Path()
-        nodes_msg.header.frame_id = self.fixed_frame
-        nodes_msg.header.stamp = now
-
-        for node in nodes:
-            pose = PoseStamped()
-            pose.header.frame_id = self.fixed_frame
-            pose.header.stamp = rospy.Time.from_sec(node.timestamp)
-            pose.pose = rc.torch_to_ros_pose(node.pose_base_in_world)
-            nodes_msg.poses.append(pose)
-        self.camera_handler["nodes_pub"].publish(nodes_msg)
-
-    @accumulate_time
-    def visualize_main_graph(self):
-        """Publishes all the visualizations related to the mission graph"""
-        now = rospy.Time.from_sec(self.last_image_ts)
-
-        # publish main graph
-        main_graph_msg = Path()
-        main_graph_msg.header.frame_id = self.fixed_frame
-        main_graph_msg.header.stamp = now
-
-        for node in self.manager.get_main_nodes():
-            pose = PoseStamped()
-            pose.header.frame_id = self.fixed_frame
-            pose.header.stamp = rospy.Time.from_sec(node.timestamp)
-            pose.pose = rc.torch_to_ros_pose(node.pose_cam_in_world)
-            main_graph_msg.poses.append(pose)
-        self.camera_handler["main_graph_pub"].publish(main_graph_msg)
-
-    def visualize_image_overlay(self):
-        """Publishes all the debugging, slow visualizations"""
+    def visualize_self_supervision_label_image_overlay(self) -> None:
+        """ Visualizes the self-supervision label overlaid on the camera image of the vis_node,
+            it published as a camera topic and can save locally as well.
+        """
         save_local = True
         # Ensure the results/reprojection directory exists
         output_dir = "results/reprojection"
@@ -997,7 +743,6 @@ class MainProcess(NodeForROS):
             os.makedirs(output_dir)
         vis_node: MainNode = self.manager.get_main_node_for_visualization()
         if vis_node is not None:
-            cam = vis_node.camera_name
             torch_image = vis_node._image
             torch_mask = vis_node._supervision_mask
             for i in range(torch_mask.shape[0]):
@@ -1019,8 +764,6 @@ class MainProcess(NodeForROS):
                     filename = f"channel_{i}.jpg"
                     file_path = os.path.join(output_dir, filename)
                     add_color_bar_and_save(out_image, i, file_path)
-                    # Save the image
-                    # out_image.save(file_path)
 
 
 if __name__ == "__main__":
