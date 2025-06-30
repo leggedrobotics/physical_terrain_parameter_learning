@@ -6,7 +6,7 @@
 #
 import torch.nn as nn
 import torch
-from phy_decoder import ModelFactory
+from physical_decoder import ModelFactory
 
 from typing import Dict, Any, Optional
 

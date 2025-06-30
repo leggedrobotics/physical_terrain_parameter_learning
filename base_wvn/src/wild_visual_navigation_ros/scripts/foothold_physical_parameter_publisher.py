@@ -10,7 +10,7 @@ Attention: this use an old stable version of the PHY-decoder.
 """
 
 from base_wvn.utils import NodeForROS
-from phy_decoder import DeploymentWrapper
+from physical_decoder import DeploymentWrapper
 
 from wild_visual_navigation_msgs.msg import AnymalState
 from std_msgs.msg import Float32, Float32MultiArray

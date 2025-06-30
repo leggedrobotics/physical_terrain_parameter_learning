@@ -12,7 +12,7 @@ import torch
 import numpy as np
 import re
 
-from phy_decoder import get_latest_file_in_directory
+from physical_decoder import get_latest_file_in_directory
 
 
 def extract_timestamp_from_filename(filename):

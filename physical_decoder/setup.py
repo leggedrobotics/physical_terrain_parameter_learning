@@ -8,8 +8,8 @@ from setuptools import find_packages
 from distutils.core import setup
 
 setup(
-    name="phy_decoder",
-    version="0.0.1",
+    name="physical_decoder",
+    version="1.0.0",
     author="Jiaqi Chen",
     author_email="chenjiaq@student.ethz.ch",
     packages=find_packages(),

@@ -10,7 +10,7 @@ from simple_parsing.helpers import Serializable
 import yaml
 import os
 
-from phy_decoder import ModelParams
+from physical_decoder import ModelParams
 
 
 @dataclass

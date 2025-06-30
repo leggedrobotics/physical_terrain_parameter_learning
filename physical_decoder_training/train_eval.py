@@ -22,7 +22,7 @@ from training_utils.utils import (
 
 from typing import Optional
 
-from phy_decoder import (
+from physical_decoder import (
     ModelFactory,
     get_latest_file_in_directory,
     construct_search_pattern,

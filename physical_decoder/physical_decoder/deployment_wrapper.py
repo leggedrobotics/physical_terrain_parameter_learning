@@ -2,9 +2,9 @@ import torch
 import torch.nn as nn
 import os
 from typing import Dict, Any, Tuple
-from phy_decoder.decoder import ModelFactory
-from phy_decoder.decoder_config import ModelParams
-from phy_decoder.utils import (
+from physical_decoder.decoder import ModelFactory
+from physical_decoder.decoder_config import ModelParams
+from physical_decoder.utils import (
     get_latest_file_in_directory,
     construct_search_pattern,
 )
