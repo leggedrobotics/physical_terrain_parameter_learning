@@ -31,6 +31,13 @@ class Base(nn.Module):
         self.reset_parameters()
 
     def forward(self, input: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            input (torch.Tensor): shape (batch_size, sequence_length, feature_dim)
+
+        Returns:
+            torch.Tensor: shape (batch_size, sequence_length, priv_size)
+        """
         pred = self.decoder(input)
         return pred
 
@@ -67,6 +74,14 @@ class Base(nn.Module):
     def forward_and_get_loss(
         self, input: torch.Tensor, label: torch.Tensor, is_training: bool
     ) -> torch.Tensor:
+        """
+        Args:
+            input (torch.Tensor): shape (batch_size, sequence_length, feature_dim)
+            label (torch.Tensor): shape (batch_size, sequence_length, priv_size)
+
+        Returns:
+            torch.Tensor: shape ()
+        """
         output = self.forward(input)
 
         if output.shape[1] != label.shape[1]:
@@ -89,6 +104,15 @@ class Base(nn.Module):
         true_state: torch.Tensor,
         loss_w_in: Optional[torch.Tensor] = None,
     ) -> torch.Tensor:
+        """
+        Args:
+            output (torch.Tensor): shape (batch_size, sequence_length, priv_size)
+            true_state (torch.Tensor): shape (batch_size, sequence_length, priv_size)
+            loss_w_in (Optional[torch.Tensor], optional): shape (batch_size, sequence_length, priv_size). Defaults to None.
+
+        Returns:
+            torch.Tensor: shape ()
+        """
         batch_size = true_state.shape[0]
 
         if loss_w_in is not None:

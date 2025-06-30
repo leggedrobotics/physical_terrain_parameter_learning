@@ -31,6 +31,11 @@ class DataManager:
     def _load_and_organize_data(
         self, directory: str
     ) -> Dict[int, List[Dict[str, torch.Tensor]]]:
+        """
+        Organize the data for training.
+        Returns:
+            {env_id: List[{combined_input/output_key: Tensor(sequence_length, feat_dim)}]}
+        """
         data = combine_datasets_from_directory(directory, self.param.model.output_type)
         organized_data = organize_data(
             data,
@@ -54,7 +59,7 @@ class DataManager:
         dataset = RNNDataset(
             env_id_data,
             param=self.param,
-        )
+        )  # dataset.data: List[(InputTensor(sequence_length, feature_dim), LabelTensor(sequence_length, priv_size))]
 
         # Create a DataLoader for the custom dataset
         data_loader = DataLoader(dataset, batch_size=1, shuffle=False)
@@ -181,7 +186,9 @@ class RNNDataset(Dataset):
                 else:
                     raise ValueError("Invalid output_type. Choose 'fric' or 'stiff'")
 
-                self.data.append((input_data.to(device), output_data.to(device)))
+                self.data.append(
+                    (input_data.to(device), output_data.to(device))
+                )  # List[(InputTensor(sequence_length, feature_dim), LabelTensor(sequence_length, priv_size))]
 
     def __len__(self):
         return len(self.data)
@@ -198,7 +205,10 @@ def organize_data(
 ) -> Dict[int, List[Dict[str, torch.Tensor]]]:
     """
     Organize the data for training.
-    Returns a dictionary with keys as env_ids and values as lists of sequences
+    Args:
+        data: {env_id: {input/output_key: Tensor(complete_sequence, feat_dim)}
+    Returns:
+        {env_id: List[{combined_input/output_key: Tensor(sequence_length, feat_dim)}]}
     """
     organized_data = {}
     selected_cols = [i * 9 + 8 for i in range(4)]
@@ -322,9 +332,10 @@ def get_data_files_by_ratio(
 def combine_datasets_from_directory(
     dataset_directory: str, output_type: str
 ) -> Dict[int, Dict[str, torch.Tensor]]:
-    # if os.path.exists(f"{dataset_directory}/{mode}_{output_type}_comb.pt"):
-    #     print(f"Combined dataset for {output_type} already exists. Skipping combination.")
-    #     return torch.load(f"{dataset_directory}/{mode}_{output_type}_comb.pt")
+    """
+    Returns:
+        {env_id: {input/output_key: Tensor(complete_sequence, feat_dim)}
+    """
 
     if output_type == "fric":
         files = get_data_files_by_ratio(dataset_directory, 0.8, 1.0)
@@ -338,7 +349,6 @@ def combine_datasets_from_directory(
         combined_data = combine_datasets(files, dest_file_path)
     else:
         raise ValueError(f"Unknown output_type: {output_type}")
-    # torch.save(combined_data, f"{dataset_directory}/{mode}_{output_type}_comb.pt")
     return combined_data
 
 

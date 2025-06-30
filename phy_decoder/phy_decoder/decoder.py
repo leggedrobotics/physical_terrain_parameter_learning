@@ -148,6 +148,13 @@ class Base(Model):
         self.hidden = None
 
     def forward_rnn(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            x (torch.Tensor): shape (sequence_length, batch_size, input_size)
+
+        Returns:
+            torch.Tensor: shape (batch_size, sequence_length, hidden_size)
+        """
         if self.reset_hidden or self.hidden is None:
             self.hidden = self.init_hidden(x.shape[1])
         self.hidden = self.hidden.detach()
@@ -158,6 +165,12 @@ class Base(Model):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Returns normalized prediction (used during training).
+
+        Args:
+            x (torch.Tensor): Input tensor of shape (batch_size, sequence_length, feature_dim)
+
+        Returns:
+            torch.Tensor: shape (batch_size, sequence_length, priv_size)
         """
         x = input_selection(x, self.input_slice)  # Select input based on input type
         x = x.permute(1, 0, 2)
@@ -169,6 +182,12 @@ class Base(Model):
     def predict(self, x: torch.Tensor) -> torch.Tensor:
         """
         Returns de-normalized output (used during inference).
+
+        Args:
+            x (torch.Tensor): Input tensor of shape (batch_size, sequence_length, feature_dim)
+
+        Returns:
+            torch.Tensor: shape (batch_size, sequence_length, priv_size)
         """
         with torch.no_grad():
             norm_pred = self.forward(x)
@@ -210,6 +229,13 @@ class Parallel(Base):
         self.hidden_pro = None
 
     def forward_rnn(self, x: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Args:
+            x (torch.Tensor): shape (sequence_length, batch_size, input_size)
+
+        Returns:
+            Tuple[torch.Tensor, torch.Tensor]: shape (batch_size, sequence_length, hidden_size)
+        """
         # Path 1 rnn
         if self.reset_hidden or self.hidden is None:
             self.hidden = self.init_hidden(x.shape[1])
@@ -229,6 +255,12 @@ class Parallel(Base):
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
         Returns normalized prediction (used during training).
+
+        Args:
+            x (torch.Tensor): Input tensor of shape (batch_size, sequence_length, feature_dim)
+
+        Returns:
+            torch.Tensor: shape (batch_size, sequence_length, priv_size)
         """
         x = input_selection(x, self.input_slice)  # Select input based on input type
         x = x.permute(1, 0, 2)  # convert for rnn input

@@ -10,7 +10,7 @@ from torch import nn
 import pytorch_lightning as pl
 from training_utils.loss_wrapper import LossWrapperFactory
 
-from typing import Dict, Any
+from typing import Dict, Any, Tuple
 
 
 class LightningWrapper:
@@ -33,15 +33,22 @@ class DefaultLightning(pl.LightningModule):
         )
 
     def training_step(
-        self, batch: torch.Tensor, batch_idx: torch.Tensor
+        self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int
     ) -> torch.Tensor:
+        """
+        Args:
+            batch (torch.Tensor):input and label tensors, shape (batch_size, sequence_length, feature_dim/priv_size)
+
+        Returns:
+            torch.Tensor: shape ()
+        """
         input, label = batch
         loss = self.wrapped_decoder.forward_and_get_loss(input, label, is_training=True)
         self.log(f"{self.output_type}_train_loss", loss)
         return loss
 
     def validation_step(
-        self, batch: torch.Tensor, batch_idx: torch.Tensor
+        self, batch: Tuple[torch.Tensor, torch.Tensor], batch_idx: int
     ) -> torch.Tensor:
         input, label = batch
         loss = self.wrapped_decoder.forward_and_get_loss(
