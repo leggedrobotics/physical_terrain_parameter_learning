@@ -181,7 +181,6 @@ def batch_eval(
         output_type=output_type,
         input_type=input_type,
         timestamp=timestamp,
-        ratio=1.0 if output_type == "fric" else 0.1,
         rnn_mode=rnn_mode,
         logger=logger,
     )
@@ -291,7 +290,6 @@ class VisData:
     input_type: int
     timestamp: str
     rnn_mode: str
-    ratio: float = None
     logger: Optional[NeptuneLogger] = None
 
 
@@ -327,7 +325,6 @@ def plot_error_histogram(vis_data: VisData) -> None:
     output_type = vis_data.output_type
     input_type = vis_data.input_type
     timestamp = vis_data.timestamp
-    ratio = vis_data.ratio
     logger = vis_data.logger
     rnn_mode = vis_data.rnn_mode
     errors = vis_data.errors
@@ -378,8 +375,10 @@ def plot_error_histogram(vis_data: VisData) -> None:
     current_time = timestamp
     folder_name = "models/histograms"
     os.makedirs(folder_name, exist_ok=True)  # Create the folder if it doesn't exist
-    filename = f"histogram_{output_type}_{rnn_mode}_{input_type}_ratio{ratio}_{current_time}.png".replace(
-        "__", "_"
+    filename = (
+        f"histogram_{output_type}_{rnn_mode}_{input_type}_{current_time}.png".replace(
+            "__", "_"
+        )
     )
 
     path_to_save = os.path.join(folder_name, filename)
