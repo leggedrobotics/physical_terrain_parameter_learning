@@ -70,7 +70,7 @@ class RNNInputSequenceBuilder:
             )  # Initialize buffer with the first data point, shape (batch_size, seq_length, feature_dim)
 
         # Shift buffer to the left by 1 timestep (drop the oldest)
-        self.buffer[:, :-1, :] = self.buffer[:, 1:, :]
+        self.buffer[:, :-1, :] = self.buffer[:, 1:, :].clone()
 
         # Append new data at the last time step
         self.buffer[:, -1, :] = data
