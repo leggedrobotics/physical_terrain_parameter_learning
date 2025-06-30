@@ -42,9 +42,7 @@ def train(param: ParamCollection, data_manager: DataManager) -> NeptuneLogger:
     continue_training = param.general.continue_training
     model_directory = param.general.model_directory
 
-    rnn_mode = model_args["mode"]
     input_type = model_args["input_type"]
-    input_width = model_args["input_size"]
     output_type = model_args["output_type"]
 
     train_loader, val_loader = data_manager.train_loader, data_manager.val_loader
@@ -59,11 +57,7 @@ def train(param: ParamCollection, data_manager: DataManager) -> NeptuneLogger:
     )
     # Train the model
     if continue_training:
-        search_pattern = construct_search_pattern(
-            rnn_mode,
-            input_type,
-            output_type,
-        )
+        search_pattern = construct_search_pattern(model_args)
         latest_decoder_file = get_latest_file_in_directory(
             model_directory, pattern=search_pattern
         )
@@ -85,7 +79,7 @@ def train(param: ParamCollection, data_manager: DataManager) -> NeptuneLogger:
     )
     trainer.fit(model, train_loader, val_loader)
     decoder = model.get_unwrapped_decoder()
-    save_model(decoder, output_type, input_width, hyperparameters)
+    save_model(decoder, output_type, input_type, hyperparameters)
 
     return neptune_logger
 
@@ -104,9 +98,6 @@ def evaluate(
     model_args = param.model_params_to_dict()
 
     model_directory = param.general.model_directory
-    rnn_mode = model_args["mode"]
-    input_type = model_args["input_type"]
-    input_width = model_args["input_size"]
     output_type = model_args["output_type"]
 
     val_loader, single_env_val_loader = (
@@ -114,7 +105,7 @@ def evaluate(
         data_manager.single_env_val_loader,
     )
 
-    search_pattern = construct_search_pattern(rnn_mode, input_type, output_type)
+    search_pattern = construct_search_pattern(model_args)
     latest_decoder_file = get_latest_file_in_directory(
         model_directory, pattern=search_pattern
     )
@@ -136,7 +127,6 @@ def evaluate(
             decoder,
             val_loader,
             logger=neptune_logger,
-            input_width=input_width,
             timestamp=timestamp,
             params=param,
         )

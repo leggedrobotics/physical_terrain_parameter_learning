@@ -15,7 +15,7 @@ import datetime
 import matplotlib.pyplot as plt
 from neptune.types import File
 from pytorch_lightning.loggers.neptune import NeptuneLogger
-from typing import Optional, Tuple, List
+from typing import Optional, Tuple, List, Dict, Any
 from training_utils.run_config import ParamCollection
 
 
@@ -134,21 +134,15 @@ def create_bin_accuracy_calculator(output_type: str) -> BinAccuracy:
 def save_model(
     decoder: nn.Module,
     output_type: str,
-    input_width: Optional[int] = None,
-    hyperparams: Optional[dict] = None,
+    input_type: int,
+    hyperparams: Dict[str, Any],
 ):
     """Save the model to a folder."""
-    architecture_tag = "RNN"
-    rnn_mode = decoder.config["mode"]
+    architecture_tag = decoder.config["mode"]
     current_time = datetime.datetime.now().strftime("%Y_%m_%d_%H%M")
-    if input_width:
-        filename = f"model_{output_type}_{architecture_tag}_{rnn_mode}_InputWidth{input_width}_{current_time}.pth".replace(
-            "__", "_"
-        )
-    else:
-        filename = f"model_{output_type}_{architecture_tag}_{rnn_mode}_{current_time}.pth".replace(
-            "__", "_"
-        )
+    filename = f"model_{output_type}_{architecture_tag}_{input_type}_{current_time}.pth".replace(
+        "__", "_"
+    )
 
     folder_name = "models"
     os.makedirs(folder_name, exist_ok=True)  # Create the folder if it doesn't exist
@@ -170,12 +164,12 @@ def batch_eval(
     decoder: nn.Module,
     val_loader: DataLoader,
     logger: NeptuneLogger,
-    input_width: int,
     timestamp: str,
     params: ParamCollection,
 ) -> None:
     output_type = params.model.output_type
     rnn_mode = params.model.mode
+    input_type = params.model.input_type
     # Collect errors and plot histogram for model
     true_values, errors = collect_errors(decoder, val_loader)
     vis_data = VisData(
@@ -185,7 +179,7 @@ def batch_eval(
         min_range=0 if output_type == "fric" else 1,
         max_range=1 if output_type == "fric" else 10,
         output_type=output_type,
-        input_width=input_width,
+        input_type=input_type,
         timestamp=timestamp,
         ratio=1.0 if output_type == "fric" else 0.1,
         rnn_mode=rnn_mode,
@@ -294,7 +288,7 @@ class VisData:
     min_range: float
     max_range: float
     output_type: str
-    input_width: int
+    input_type: int
     timestamp: str
     rnn_mode: str
     ratio: float = None
@@ -331,7 +325,7 @@ def compute_mean_errors_per_bin(
 def plot_error_histogram(vis_data: VisData) -> None:
     interval = vis_data.interval
     output_type = vis_data.output_type
-    input_width = vis_data.input_width
+    input_type = vis_data.input_type
     timestamp = vis_data.timestamp
     ratio = vis_data.ratio
     logger = vis_data.logger
@@ -382,17 +376,11 @@ def plot_error_histogram(vis_data: VisData) -> None:
         plt.ylim([0, 1])
     # Save the plot
     current_time = timestamp
-    rnn_or_mlp = "RNN" + "_" + rnn_mode
     folder_name = "models/histograms"
     os.makedirs(folder_name, exist_ok=True)  # Create the folder if it doesn't exist
-    if ratio is not None:
-        filename = f"histogram_{output_type}_{rnn_or_mlp}_{input_width}_ratio{ratio}_{current_time}.png".replace(
-            "__", "_"
-        )
-    else:
-        filename = f"histogram_{output_type}_{rnn_or_mlp}_{input_width}_{current_time}.png".replace(
-            "__", "_"
-        )
+    filename = f"histogram_{output_type}_{rnn_mode}_{input_type}_ratio{ratio}_{current_time}.png".replace(
+        "__", "_"
+    )
 
     path_to_save = os.path.join(folder_name, filename)
     plt.savefig(path_to_save)

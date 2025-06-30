@@ -74,22 +74,16 @@ class RNNInputBuffer:
         return self.buffer[-n:]  # get the last n elements
 
 
-def construct_search_pattern(rnn_mode: str, input_type: str, output_type: str) -> str:
+def construct_search_pattern(model_args: Dict[str, Any]) -> str:
     conditions = []
 
-    # Check model type (RNN)
-    conditions.append("RNN")
-    conditions.append(rnn_mode)
+    # Check model type
+    conditions.append(model_args["mode"])
 
-    # Check input width
-    input_width_mapping = {
-        "pro+exte": "InputWidth341",
-        "pro": "InputWidth133",
-        "all": "InputWidth441",
-    }
-    conditions.append(input_width_mapping.get(input_type, ""))
+    conditions.append(model_args["input_type"])
 
     # Construct search pattern
+    output_type = model_args["output_type"]
     search_pattern = f"*{output_type}*"
     for condition in conditions:
         search_pattern += f"*{condition}*"
@@ -155,9 +149,9 @@ def load_decoder(model_args: Dict[str, Any], output_type: str) -> nn.Module:
     # Get the directory of the current file
     current_directory = os.path.dirname(__file__)
     models_path = os.path.join(current_directory, "models")
-    search_pattern = construct_search_pattern(
-        model_args["mode"], model_args["input_type"], output_type
-    )
+    # override output_type in model_args
+    model_args["output_type"] = output_type
+    search_pattern = construct_search_pattern(model_args)
     latest_model_file = get_latest_file_in_directory(
         models_path, pattern=search_pattern
     )
