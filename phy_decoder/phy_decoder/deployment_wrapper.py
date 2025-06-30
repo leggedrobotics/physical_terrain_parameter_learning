@@ -53,6 +53,7 @@ class RNNInputSequenceBuilder:
         Returns:
             torch.Tensor: shape (batch_size, seq_length, feature_dim)
         """
+        data = data.to(self.device)  # Ensure data is on the correct device
         self.add(data)
         return self.buffer
 

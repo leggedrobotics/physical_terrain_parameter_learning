@@ -10,7 +10,7 @@ Attention: this use an old stable version of the PHY-decoder.
 """
 
 from base_wvn.utils import NodeForROS
-from phy_decoder import initialize_models, prepare_padded_input, RNNInputBuffer
+from phy_decoder import DeploymentWrapper
 
 from wild_visual_navigation_msgs.msg import AnymalState
 from std_msgs.msg import Float32, Float32MultiArray
@@ -29,15 +29,7 @@ class FootholdPhysicalParameterPublisher(NodeForROS):
     def __init__(self):
         super().__init__()
 
-        # Init for PHYSICS DECODERs
-        self.step = 0
-        self.env_num = 1
-        self.fric_predictor, self.stiff_predictor, self.predictor_cfg = (
-            initialize_models()
-        )
-        self.fric_hidden = self.fric_predictor.init_hidden(self.env_num)
-        self.stiff_hidden = self.stiff_predictor.init_hidden(self.env_num)
-        self.input_buffers = {0: RNNInputBuffer()}
+        self.physical_decoder = DeploymentWrapper()
 
         self.system_events = {}
 
@@ -86,7 +78,6 @@ class FootholdPhysicalParameterPublisher(NodeForROS):
         callback function for the anymal state subscriber
         """
 
-        self.step += 1
         self.system_events["callback_received"] = {
             "time": rospy.get_time(),
             "value": "message received",
@@ -103,37 +94,12 @@ class FootholdPhysicalParameterPublisher(NodeForROS):
             phy_decoder_input = torch.tensor(
                 phy_decoder_input_msg.data, device=self.device
             ).unsqueeze(0)
-            obs, hidden = torch.split(phy_decoder_input, [341, 100], dim=1)
-            input_data = obs[:, :341]
-
-            padded_inputs = prepare_padded_input(
-                input_data, self.input_buffers, self.step, self.env_num
-            )
-            padded_input = torch.stack(padded_inputs, dim=0)
-            if self.predictor_cfg["reset_hidden_each_epoch"]:
-                self.fric_hidden = self.fric_predictor.init_hidden(self.env_num)
-                self.stiff_hidden = self.stiff_predictor.init_hidden(self.env_num)
-            with torch.no_grad():
-                # Predict using the friction predictor
-                fric_pred, self.fric_hidden = (
-                    self.fric_predictor.get_unnormalized_recon(
-                        padded_input, self.fric_hidden
-                    )
-                )
-
-                # Predict using the stiffness predictor
-                stiff_pred, self.stiff_hidden = (
-                    self.stiff_predictor.get_unnormalized_recon(
-                        padded_input, self.stiff_hidden
-                    )
-                )
-
-            self.input_buffers[0].add(input_data[0].unsqueeze(0))
+            fric_pred, stiff_pred = self.physical_decoder.predict(phy_decoder_input)
             # pub fric and stiff together
             fric_pred = torch.clamp(fric_pred, min=0, max=1)
             stiff_pred = torch.clamp(stiff_pred, min=1, max=10)
             new_priv = torch.cat([fric_pred, stiff_pred], dim=-1)
-            new_priv = new_priv[:, -1, :].squeeze(0).cpu().numpy()
+            new_priv = new_priv.squeeze(0).cpu().numpy()
             msg.prediction = new_priv
 
             # Publish results
