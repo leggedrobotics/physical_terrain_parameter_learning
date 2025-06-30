@@ -21,6 +21,6 @@ catkin_package(
 
 catkin_python_setup()
 catkin_install_python(PROGRAMS  scripts/supervision_label_builder_node.py
-                      
-                                
+                                scripts/physical_decoder_node.py
+                                scripts/main_process_node.py
                       DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})

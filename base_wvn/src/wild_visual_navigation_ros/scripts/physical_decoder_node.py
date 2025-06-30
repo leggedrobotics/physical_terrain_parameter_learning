@@ -21,7 +21,7 @@ import torch
 import traceback
 
 
-class FootholdPhysicalParameterPublisher(NodeForROS):
+class PhysicalDecoderNode(NodeForROS):
     """
     Process /debug_info and publish friction and stiffness prediction. It will be passed on to supervision_label_builder_node to add foothold and other info.
     """
@@ -116,8 +116,8 @@ class FootholdPhysicalParameterPublisher(NodeForROS):
 
 
 if __name__ == "__main__":
-    node_name = "foothold_physical_parameter_publisher_node"
+    node_name = "physical_decoder_node"
     rospy.set_param("/use_sim_time", True)
     rospy.init_node(node_name)
-    phy_node = FootholdPhysicalParameterPublisher()
+    phy_node = PhysicalDecoderNode()
     rospy.spin()
