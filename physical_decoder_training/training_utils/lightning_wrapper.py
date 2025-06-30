@@ -7,13 +7,10 @@
 import torch
 from torch import nn
 
-# import rslgym.algorithm.modules as rslgym_module
 import pytorch_lightning as pl
 from training_utils.loss_wrapper import LossWrapperFactory
 
 from typing import Dict, Any
-
-""" Add an option to use only the output from the middle position of the sequence for prediction and loss calculation. """
 
 
 class LightningWrapper:

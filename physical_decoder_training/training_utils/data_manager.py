@@ -13,7 +13,7 @@ import re
 import gc
 import numpy as np
 from torch.utils.data import DataLoader, Dataset
-from typing import List, Dict, Tuple
+from typing import List, Dict, Tuple, Optional
 from training_utils.run_config import ParamCollection
 
 
@@ -28,7 +28,9 @@ class DataManager:
             self.label_weights = self._compute_label_weights(self.train_loader.dataset)
         self.val_loader, self.single_env_val_loader = self._load_val_data()
 
-    def _load_and_organize_data(self, directory: str):
+    def _load_and_organize_data(
+        self, directory: str
+    ) -> Dict[int, List[Dict[str, torch.Tensor]]]:
         data = combine_datasets_from_directory(directory, self.param.model.output_type)
         organized_data = organize_data(
             data,
@@ -42,7 +44,7 @@ class DataManager:
 
     def _get_dataloader_for_env_id(
         self,
-        organized_data,
+        organized_data: Dict[int, List[Dict[str, torch.Tensor]]],
     ) -> DataLoader:
         env_id = self.param.general.val_test_env_id
         # Extract data for the specific env_id
@@ -93,7 +95,6 @@ class DataManager:
             raise ValueError("Unknown model type")
         # Convert tuple of tensors to a single numpy array
         labels = torch.cat(labels, dim=0).cpu().numpy()
-        # Adjust range if needed
         bins = np.arange(min_range, max_range + interval, interval)
         hist, _ = np.histogram(labels, bins=bins)
         self.label_weighting_bin_interval = interval
@@ -128,7 +129,7 @@ class DataManager:
 class RNNDataset(Dataset):
     def __init__(
         self,
-        data,
+        data: Dict[int, List[Dict[str, torch.Tensor]]],
         param: ParamCollection,
     ):
         self.data = []
@@ -168,7 +169,6 @@ class RNNDataset(Dataset):
                     self.noise_dist = torch.distributions.Normal(0, noise_std + 1e-10)
                     self.noise_exte = (2 * torch.rand_like(torch.ones(208)) - 1) * 0.5
                     cc = self.noise_dist.sample((input_data.shape[0],))
-                    # input_data=input_data+torch.randn_like(input_data)*noise_level
                     input_data += cc
                     input_data[:, 133:341] += self.noise_exte.to(device)
 
@@ -191,13 +191,14 @@ class RNNDataset(Dataset):
         return input_data, output_data
 
 
-def organize_data(data, sequence_length=10, overlapp=None):
+def organize_data(
+    data: Dict[int, Dict[str, torch.Tensor]],
+    sequence_length: int = 10,
+    overlapp: Optional[int] = None,
+) -> Dict[int, List[Dict[str, torch.Tensor]]]:
     """
     Organize the data for training.
-    Returns a dictionary with keys as env_ids and values as lists of sequences (for RNN)
-    or single data points (for MLP).
-
-    Also, if subtraction mode is on, subtract the exte and policy data from its previous 1 time step.
+    Returns a dictionary with keys as env_ids and values as lists of sequences
     """
     organized_data = {}
     selected_cols = [i * 9 + 8 for i in range(4)]
@@ -320,7 +321,7 @@ def get_data_files_by_ratio(
 
 def combine_datasets_from_directory(
     dataset_directory: str, output_type: str
-) -> Dict[str, Dict[str, torch.Tensor]]:
+) -> Dict[int, Dict[str, torch.Tensor]]:
     # if os.path.exists(f"{dataset_directory}/{mode}_{output_type}_comb.pt"):
     #     print(f"Combined dataset for {output_type} already exists. Skipping combination.")
     #     return torch.load(f"{dataset_directory}/{mode}_{output_type}_comb.pt")

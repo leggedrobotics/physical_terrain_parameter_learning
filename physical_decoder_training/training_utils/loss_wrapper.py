@@ -106,13 +106,11 @@ class Base(nn.Module):
     def weighted_mse(
         self, a: torch.Tensor, b: torch.Tensor, w: torch.Tensor
     ) -> torch.Tensor:
-        # w = w.reshape(a.shape[0], 1)
         return (w * (a - b) ** 2).mean()
 
     def weighted_l1(
         self, a: torch.Tensor, b: torch.Tensor, w: torch.Tensor
     ) -> torch.Tensor:
-        # w = w.reshape(a.shape[0], 1)
         return (w * torch.abs(a - b)).mean()
 
     def save(self, path: str) -> None:

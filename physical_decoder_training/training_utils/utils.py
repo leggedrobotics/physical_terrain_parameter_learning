@@ -114,7 +114,6 @@ class BinAccuracy:
 
 
 def create_bin_accuracy_calculator(output_type: str) -> BinAccuracy:
-    # Calculate derived properties
     if output_type == "fric":
         discretization = "SID"
         ord_num = 5
@@ -383,7 +382,7 @@ def plot_error_histogram(vis_data: VisData) -> None:
         plt.ylim([0, 1])
     # Save the plot
     current_time = timestamp
-    rnn_or_mlp = "RNN" + "_" + rnn_mode  # Modify this line to include the RNN mode
+    rnn_or_mlp = "RNN" + "_" + rnn_mode
     folder_name = "models/histograms"
     os.makedirs(folder_name, exist_ok=True)  # Create the folder if it doesn't exist
     if ratio is not None:

@@ -56,7 +56,6 @@ class Model(nn.Module):
         if not isinstance(config, dict):
             raise ValueError("Config must be a dict.")
         self.config = config
-        # Set default values and override with any values provided in config
         self.input_size = config["input_size"]
         self.priv_size = config["priv_size"]
         self.hidden_to_pred_shape = config["hidden_to_pred_shape"]

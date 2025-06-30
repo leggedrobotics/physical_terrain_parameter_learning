@@ -5,7 +5,7 @@
 #
 #
 from dataclasses import dataclass, field, asdict
-from typing import List
+from typing import List, Dict, Any
 from simple_parsing.helpers import Serializable
 import yaml
 import os
@@ -40,7 +40,7 @@ class ParamCollection(Serializable):
         project: str = os.getenv("NEPTUNE_PROJECT", "default_project_if_not_set")
         tags: List[str] = field(default_factory=lambda: ["tag"])
 
-        def to_dict(self):
+        def to_dict(self) -> Dict[str, Any]:
             d = asdict(self)  # Convert all fields to a dict
             return d
 
@@ -48,11 +48,11 @@ class ParamCollection(Serializable):
 
     model: ModelParams = ModelParams()
 
-    def model_params_to_dict(self):
+    def model_params_to_dict(self) -> Dict[str, Any]:
         cfgs = self.model.to_dict()
         return cfgs
 
-    def all_to_dict(self):
+    def all_to_dict(self) -> Dict[str, Any]:
         cfgs = {}
 
         # Prefix general config keys

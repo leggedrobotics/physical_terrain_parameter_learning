@@ -7,7 +7,6 @@
 from pytorch_lightning import Trainer
 
 from pytorch_lightning.loggers.neptune import NeptuneLogger
-# Imports from the Decoder_training directory
 
 from training_utils.dataset_analysis import (
     extract_timestamp_from_filename,
@@ -115,7 +114,6 @@ def evaluate(
         data_manager.single_env_val_loader,
     )
 
-    # Testing mode after training
     search_pattern = construct_search_pattern(rnn_mode, input_type, output_type)
     latest_decoder_file = get_latest_file_in_directory(
         model_directory, pattern=search_pattern
@@ -154,4 +152,4 @@ if __name__ == "__main__":
     data_manager = DataManager(param)
     if param.general.mode == "train":
         logger = train(param, data_manager)
-    evaluate(param, data_manager, logger)  # Uncomment to run evaluation
+    evaluate(param, data_manager, logger)
