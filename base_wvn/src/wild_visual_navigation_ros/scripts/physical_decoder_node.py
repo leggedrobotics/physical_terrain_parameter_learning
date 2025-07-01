@@ -9,8 +9,8 @@ Pub node to process ros messages, publish the friction and stiffness prediction.
 Attention: this use an old stable version of the PHY-decoder.
 """
 
-from base_wvn.utils import NodeForROS
 from physical_decoder import DeploymentWrapper
+from ros_node import RosNode
 
 from wild_visual_navigation_msgs.msg import AnymalState
 from std_msgs.msg import Float32, Float32MultiArray
@@ -21,7 +21,7 @@ import torch
 import traceback
 
 
-class PhysicalDecoderNode(NodeForROS):
+class PhysicalDecoderNode(RosNode):
     """
     Process /debug_info and publish friction and stiffness prediction. It will be passed on to supervision_label_builder_node to add foothold and other info.
     """

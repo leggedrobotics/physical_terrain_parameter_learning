@@ -10,7 +10,7 @@ Main node to process ros messages, publish the relevant topics, train the model.
 
 from base_wvn import ParamCollection
 from wild_visual_navigation_msgs.msg import AnymalState
-from nav_msgs.msg import  Odometry
+from nav_msgs.msg import Odometry
 import ros_converter as rc
 import rospy
 import seaborn as sns
@@ -20,7 +20,7 @@ import signal
 import sys
 
 
-class NodeForROS:
+class RosNode:
     def __init__(self):
         # Read the parameters from the config file
         self.param = ParamCollection()
@@ -60,7 +60,9 @@ class NodeForROS:
 
         # THREAD PARAMETERS
         self.camera_callback_rate = self.param.thread.camera_callback_rate
-        self.supervision_signal_callback_rate = self.param.thread.supervision_signal_callback_rate
+        self.supervision_signal_callback_rate = (
+            self.param.thread.supervision_signal_callback_rate
+        )
         self.learning_thread_rate = self.param.thread.learning_rate
         self.logging_thread_rate = self.param.thread.logging_rate
 
@@ -103,24 +105,25 @@ class NodeForROS:
         else:
             raise ValueError("pub_pred_as_layer must be either 'single' or 'RGB'")
 
-    def get_pose_base_in_world(self, state_msg: AnymalState, visual_odom_msg: Odometry) -> np.ndarray:
-        """ Get the pose of the base in world frame
-        """
+    def get_pose_base_in_world(
+        self, state_msg: AnymalState, visual_odom_msg: Odometry
+    ) -> np.ndarray:
+        """Get the pose of the base in world frame"""
         if self.use_vo:
             return self.get_pose_base_in_world_from_slam(visual_odom_msg)
         else:
             return self.get_pose_base_in_world_from_state_estimator(state_msg)
 
-    def get_pose_base_in_world_from_state_estimator(self, state_msg: AnymalState) -> np.ndarray:
-        """ From proprioceptive state estimator
-        """
+    def get_pose_base_in_world_from_state_estimator(
+        self, state_msg: AnymalState
+    ) -> np.ndarray:
+        """From proprioceptive state estimator"""
         transform = state_msg.pose
         pose_base_in_world = rc.msg_to_se3(transform)
         return pose_base_in_world.astype(np.float32)
-        
+
     def get_pose_base_in_world_from_slam(self, visual_odom_msg: Odometry) -> np.ndarray:
-        """ From SLAM system, visual_odom_msg: from visual odom frame to lidar frame
-        """
+        """From SLAM system, visual_odom_msg: from visual odom frame to lidar frame"""
         pose_lidar_in_world = rc.msg_to_se3(visual_odom_msg)
         pose_base_in_lidar = np.linalg.inv(self.lidar_in_base)
         pose_base_in_world = pose_lidar_in_world @ pose_base_in_lidar

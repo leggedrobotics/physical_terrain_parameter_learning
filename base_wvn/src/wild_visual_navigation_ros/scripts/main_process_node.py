@@ -9,7 +9,6 @@ Main node to process ros messages, publish the relevant topics, train the model.
 """
 
 from base_wvn.utils import (
-    NodeForROS,
     FeatureExtractor,
     ImageProjector,
     plot_overlay_image,
@@ -26,6 +25,7 @@ from wild_visual_navigation_msgs.msg import AnymalState
 from geometry_msgs.msg import PoseStamped, TransformStamped
 from visualization_msgs.msg import Marker
 from wild_visual_navigation_msgs.msg import SystemState, PhyDecoderOutput, ChannelInfo
+from ros_node import RosNode
 import os
 import rospy
 import time
@@ -46,7 +46,7 @@ from copy import deepcopy
 from typing import Optional, Union
 
 
-class MainProcess(NodeForROS):
+class MainProcess(RosNode):
     def __init__(self):
         super().__init__()
         self.step = 0
@@ -307,20 +307,27 @@ class MainProcess(NodeForROS):
         self.camera_handler["latest_main_node"] = latest_main_node
         self.camera_handler["latest_sub_node"] = latest_sub_node
 
-    
-    def log(self, entry: str, msg:str) -> None:
+    def log(self, entry: str, msg: str) -> None:
         """Grab the lock and log the message in verbose mode."""
         if self.verbose:
             with self.log_data["Lock"]:
                 self.log_data[entry] = msg
 
-    def is_bad_rate_with_log(self,current_timestamp_sec:float, last_timestamp_sec:float, rate_upper_limit:float, log_entry: str) -> bool:
+    def is_bad_rate_with_log(
+        self,
+        current_timestamp_sec: float,
+        last_timestamp_sec: float,
+        rate_upper_limit: float,
+        log_entry: str,
+    ) -> bool:
         """Here we output signal to outer loop if the current iteration above the rate upper limit:
-             True - too fast or jump back in time, skip this iteration
-             False - ok
+        True - too fast or jump back in time, skip this iteration
+        False - ok
         """
         current_interval_sec = current_timestamp_sec - last_timestamp_sec
-        current_rate= 1.0 / current_interval_sec if current_interval_sec != 0 else float("inf")
+        current_rate = (
+            1.0 / current_interval_sec if current_interval_sec != 0 else float("inf")
+        )
 
         if current_rate <= 0.0:
             self.log(log_entry, "skipping: jump back in time")
@@ -340,7 +347,6 @@ class MainProcess(NodeForROS):
         msg.data = 1.0
         freq_pub.publish(msg)
 
-
     @accumulate_time
     def camera_callback(
         self,
@@ -358,14 +364,16 @@ class MainProcess(NodeForROS):
         }
         try:
             ts = img_msg.header.stamp.to_sec()
-            if self.is_bad_rate_with_log(ts,self.last_image_ts,self.camera_callback_rate,"camera_callback"):
+            if self.is_bad_rate_with_log(
+                ts, self.last_image_ts, self.camera_callback_rate, "camera_callback"
+            ):
                 self.system_events["camera_callback_cancelled"] = {
                     "time": rospy.get_time(),
                     "value": "cancelled due to rate",
                 }
                 return
 
-            self.log("ros_time_now", rospy.get_time())  
+            self.log("ros_time_now", rospy.get_time())
 
             # prepare tf from base to camera
             pose_base_in_world = self.get_pose_base_in_world(state_msg, visual_odom_msg)
@@ -380,8 +388,9 @@ class MainProcess(NodeForROS):
                 # pub for testing frequency
                 self.debug_pub_camera_callback()
                 # send tf , vis in rviz
-                self.broadcast_tf_from_matrix(pose_cam_in_world,self.world_frame,"hdr_rear_camera")
-
+                self.broadcast_tf_from_matrix(
+                    pose_cam_in_world, self.world_frame, "hdr_rear_camera"
+                )
 
             # prepare image
             img_torch = rc.ros_image_to_torch(img_msg, device=self.device)
@@ -424,8 +433,16 @@ class MainProcess(NodeForROS):
                 main_node, verbose=self.verbose, logger=self.log_data
             )
 
-            if self.manager.distance_between_last_main_node_and_last_sub_node is not None:
-                self.log("head dist of main/sub graph", "{:.2f}".format(self.manager.distance_between_last_main_node_and_last_sub_node.item()))
+            if (
+                self.manager.distance_between_last_main_node_and_last_sub_node
+                is not None
+            ):
+                self.log(
+                    "head dist of main/sub graph",
+                    "{:.2f}".format(
+                        self.manager.distance_between_last_main_node_and_last_sub_node.item()
+                    ),
+                )
 
             # ----- visualization -----
             # 1. publish the masked dense prediction from the latest img received, it is slow by publishing images
@@ -439,7 +456,7 @@ class MainProcess(NodeForROS):
                     self.camera_handler["latest_main_node"],
                     "latest_main_node",
                 )
-                
+
             # 3. publish the label image overlay on vis_node, very slow so commented
             # self.visualize_self_supervision_label_image_overlay()
 
@@ -461,7 +478,6 @@ class MainProcess(NodeForROS):
         self, img_msg: CompressedImage, state_msg: AnymalState, cam: str
     ) -> None:
         self.camera_callback(img_msg, state_msg, None, cam)
- 
 
     @accumulate_time
     def supervision_signal_callback(self, phy_output: PhyDecoderOutput) -> None:
@@ -470,8 +486,13 @@ class MainProcess(NodeForROS):
             "value": "message received",
         }
         try:
-            ts = phy_output.header.stamp.to_sec()             
-            if self.is_bad_rate_with_log(ts,self.last_supervision_ts,self.supervision_signal_callback_rate,"supervision_signal_callback"):
+            ts = phy_output.header.stamp.to_sec()
+            if self.is_bad_rate_with_log(
+                ts,
+                self.last_supervision_ts,
+                self.supervision_signal_callback_rate,
+                "supervision_signal_callback",
+            ):
                 self.system_events["supervision_signal_callback_cancelled"] = {
                     "time": rospy.get_time(),
                     "value": "cancelled due to rate",
@@ -482,7 +503,6 @@ class MainProcess(NodeForROS):
             pose_base_in_world = rc.pose_msg_to_se3_torch(
                 phy_output.base_pose, device=self.device
             )
-
 
             fric = torch.tensor(phy_output.prediction[:4]).to(self.device)
             stiff = torch.tensor(phy_output.prediction[4:]).to(self.device)
@@ -534,7 +554,6 @@ class MainProcess(NodeForROS):
             }
 
             raise Exception("Error in supervision_signal_callback")
-
 
     @accumulate_time
     def learning_thread_loop(self) -> None:
@@ -593,7 +612,12 @@ class MainProcess(NodeForROS):
         self.learning_thread_stop_event.clear()
 
     @accumulate_time
-    def update_prediction(self, node: MainNode, ts:Optional[float]=None, header:Optional[Header]=None) -> None:
+    def update_prediction(
+        self,
+        node: MainNode,
+        ts: Optional[float] = None,
+        header: Optional[Header] = None,
+    ) -> None:
         if not hasattr(node, "image") or node.image is None:
             return
         img = node.image.to(self.device)
@@ -678,7 +702,12 @@ class MainProcess(NodeForROS):
         self.camera_handler["channel_pub"].publish(channel_info_msg)
 
     @accumulate_time
-    def broadcast_tf_from_matrix(self, matrix:Union[np.ndarray,torch.Tensor], parent_frame:str, child_frame:str) -> None:
+    def broadcast_tf_from_matrix(
+        self,
+        matrix: Union[np.ndarray, torch.Tensor],
+        parent_frame: str,
+        child_frame: str,
+    ) -> None:
         br = self.camera_br
         t = TransformStamped()
 
@@ -705,7 +734,13 @@ class MainProcess(NodeForROS):
 
         br.sendTransform(t)
 
-    def visualize_new_node(self, pose:Union[np.ndarray,torch.Tensor], stamp_sec:float, handle:rospy.Publisher, name:str) -> None: 
+    def visualize_new_node(
+        self,
+        pose: Union[np.ndarray, torch.Tensor],
+        stamp_sec: float,
+        handle: rospy.Publisher,
+        name: str,
+    ) -> None:
         # publish the last sub node
         if isinstance(pose, np.ndarray):
             pose = torch.from_numpy(pose)
@@ -731,10 +766,9 @@ class MainProcess(NodeForROS):
             msg.color = ColorRGBA(1.0, 1.0, 0.0, 1.0)
         handle.publish(msg)
 
-
     def visualize_self_supervision_label_image_overlay(self) -> None:
-        """ Visualizes the self-supervision label overlaid on the camera image of the vis_node,
-            it published as a camera topic and can save locally as well.
+        """Visualizes the self-supervision label overlaid on the camera image of the vis_node,
+        it published as a camera topic and can save locally as well.
         """
         save_local = True
         # Ensure the results/reprojection directory exists

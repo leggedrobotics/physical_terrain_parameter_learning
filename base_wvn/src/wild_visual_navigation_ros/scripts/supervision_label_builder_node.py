@@ -9,7 +9,8 @@ Pub node to relay friction and stiffness prediction msgs from phy_publisher and 
 Attention: this use an old stable version of the PHY-decoder.
 """
 
-from base_wvn.utils import make_ellipsoid, FootFilter, NodeForROS
+from base_wvn.utils import make_ellipsoid, FootFilter
+from ros_node import RosNode
 
 import ros_converter as rc
 from wild_visual_navigation_msgs.msg import AnymalState
@@ -23,7 +24,7 @@ import traceback
 from typing import Optional, Dict, Union
 
 
-class SupervisionLabelBuilder(NodeForROS):
+class SupervisionLabelBuilder(RosNode):
     def __init__(self):
         super().__init__()
 
@@ -63,7 +64,7 @@ class SupervisionLabelBuilder(NodeForROS):
                 self.visual_odom_topic, Odometry
             )
             self.world_frame = "map_o3d"
-            
+
             self.sub = message_filters.ApproximateTimeSynchronizer(
                 [anymal_state_sub, incomplete_label_sub, visual_odom_sub],
                 queue_size=100,
@@ -93,7 +94,9 @@ class SupervisionLabelBuilder(NodeForROS):
             "/vd_pipeline/visualization_planes", MarkerArray, queue_size=10
         )
 
-    def callback_no_vo(self, anymal_state_msg: AnymalState, phy_tmp_msg: PhyDecoderOutput) -> None:
+    def callback_no_vo(
+        self, anymal_state_msg: AnymalState, phy_tmp_msg: PhyDecoderOutput
+    ) -> None:
         self.callback(anymal_state_msg, phy_tmp_msg, None)
 
     def callback(
@@ -113,7 +116,9 @@ class SupervisionLabelBuilder(NodeForROS):
         }
         msg = phy_tmp_msg
         try:
-            pose_base_in_world = self.get_pose_base_in_world(anymal_state_msg, visual_odom_msg)
+            pose_base_in_world = self.get_pose_base_in_world(
+                anymal_state_msg, visual_odom_msg
+            )
             msg.base_pose = rc.se3_to_pose_msg(pose_base_in_world)
             msg.header.frame_id = self.world_frame
 
@@ -125,7 +130,9 @@ class SupervisionLabelBuilder(NodeForROS):
             feet_info = self.get_feet_info_from_msg(anymal_state_msg, visual_odom_msg)
 
             for foot in self.feet_list:
-                suc, pose_foot_in_world = rc.pq_to_se3((feet_info[foot]["position"], feet_info[foot]["rotation"]))
+                suc, pose_foot_in_world = rc.pq_to_se3(
+                    (feet_info[foot]["position"], feet_info[foot]["rotation"])
+                )
                 if not suc:
                     self.system_events["callback_cancelled"] = {
                         "time": rospy.get_time(),
@@ -146,7 +153,7 @@ class SupervisionLabelBuilder(NodeForROS):
                 foot_planes.append(foot_plane)
 
                 foot_contacts.append(feet_info[foot]["contact"])
-                        
+
             msg.feet_poses = foot_poses
             msg.feet_planes = foot_planes
             msg.feet_contact = foot_contacts
@@ -164,8 +171,12 @@ class SupervisionLabelBuilder(NodeForROS):
                 "value": f"failed to execute {e}",
             }
 
-
-    def switch_to_feet_pose_in_vo_if_provided(self, state_msg: AnymalState, visual_odom_msg: Optional[Odometry], feet_info: Dict[str, Dict[str, Union[np.ndarray, str, bool]]]) -> None:
+    def switch_to_feet_pose_in_vo_if_provided(
+        self,
+        state_msg: AnymalState,
+        visual_odom_msg: Optional[Odometry],
+        feet_info: Dict[str, Dict[str, Union[np.ndarray, str, bool]]],
+    ) -> None:
         if visual_odom_msg is None:
             return
         pose_base_in_world = rc.msg_to_se3(state_msg.pose.pose)
@@ -181,10 +192,16 @@ class SupervisionLabelBuilder(NodeForROS):
             pose_foot_in_world = world_in_map @ pose_foot_in_world
             pose_foot_in_world = pose_foot_in_world.astype(np.float32)
             info["position"], info["rotation"] = rc.se3_to_pq(pose_foot_in_world)
-    
-    def apply_foot_contact_filter(self, feet_info: Dict[str, Dict[str, Union[np.ndarray, str, bool]]],anymal_state_msg: AnymalState) -> None:
+
+    def apply_foot_contact_filter(
+        self,
+        feet_info: Dict[str, Dict[str, Union[np.ndarray, str, bool]]],
+        anymal_state_msg: AnymalState,
+    ) -> None:
         for foot, info in feet_info.items():
-            input_pose = np.concatenate([feet_info[foot]["position"], feet_info[foot]["rotation"]])
+            input_pose = np.concatenate(
+                [feet_info[foot]["position"], feet_info[foot]["rotation"]]
+            )
             filtered_contact = int(
                 self.foot_filters[foot].filter(
                     input_pose,
@@ -195,9 +212,7 @@ class SupervisionLabelBuilder(NodeForROS):
             feet_info[foot]["contact"] = filtered_contact
 
     def get_feet_info_from_msg(
-        self,
-        state_msg: AnymalState,
-        visual_odom_msg: Optional[Odometry]
+        self, state_msg: AnymalState, visual_odom_msg: Optional[Odometry]
     ) -> Dict[str, Dict[str, Union[np.ndarray, str, bool]]]:
         """Helper function to query TFs
 
@@ -205,22 +220,26 @@ class SupervisionLabelBuilder(NodeForROS):
 
             msg (AnymalState, optional): AnymalState message containing the TFs
         """
-        res={}
+        res = {}
 
         for transform in state_msg.contacts:
             if "FOOT" in transform.name:
                 foot_name = transform.name
                 res[foot_name] = {
-                    "position": np.array([
-                        transform.position.x,
-                        transform.position.y,
-                        transform.position.z,
-                    ]),
+                    "position": np.array(
+                        [
+                            transform.position.x,
+                            transform.position.y,
+                            transform.position.z,
+                        ]
+                    ),
                     "rotation": np.array([0, 0, 0, 1]),
                     "frame_id": transform.header.frame_id,
                     "contact": transform.state,
                 }
-        self.apply_foot_contact_filter(res, state_msg) # must be done before switch to feet pose in VO, because filter operate on the state_estimator data (higher frequency than slam)
+        self.apply_foot_contact_filter(
+            res, state_msg
+        )  # must be done before switch to feet pose in VO, because filter operate on the state_estimator data (higher frequency than slam)
         self.switch_to_feet_pose_in_vo_if_provided(state_msg, visual_odom_msg, res)
         return res
 
