@@ -1,6 +1,6 @@
 # Physical Terrain Parameters Learning
 
-[View the Framework Overview (PDF)](.docs/header_figure.pdf)
+![Framework Overview](.docs/header_figure.jpg)
 
 This repository accompanies the paper "Identifying Terrain Physical Parameters from Vision - Towards Physical-Parameter-Aware Locomotion and Navigation". Check project website [here](https://bit.ly/3Xo5AA8)
 
