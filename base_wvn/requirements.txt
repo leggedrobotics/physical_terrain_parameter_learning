@@ -7,7 +7,6 @@ opencv-python
 seaborn
 simple-parsing
 matplotlib
-fast_slic
 pytictac
 scipy
 scikit-learn

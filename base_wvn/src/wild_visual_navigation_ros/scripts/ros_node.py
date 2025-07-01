@@ -73,7 +73,6 @@ class RosNode:
         self.print_time = self.param.run.print_time
 
         # Feature extractor parameters
-        self.segmentation_type = self.param.feat.segmentation_type
         self.feature_type = self.param.feat.feature_type
         self.input_size = self.param.feat.input_size
         self.interp = self.param.feat.interp

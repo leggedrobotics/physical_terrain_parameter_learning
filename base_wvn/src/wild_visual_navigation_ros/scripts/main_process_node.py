@@ -62,7 +62,6 @@ class MainProcess(RosNode):
         # Init feature extractor
         self.feat_extractor = FeatureExtractor(
             device=self.device,
-            segmentation_type=self.segmentation_type,
             feature_type=self.feature_type,
             input_size=self.input_size,
             interp=self.interp,
@@ -417,9 +416,7 @@ class MainProcess(RosNode):
                 pose_base_in_world=torch.from_numpy(pose_base_in_world).to(self.device),
                 pose_cam_in_world=torch.from_numpy(pose_cam_in_world).to(self.device),
                 image=transformed_img,
-                features=features
-                if self.segmentation_type != "pixel"
-                else compressed_feats,
+                features=compressed_feats,
                 feature_type=self.feature_type,
                 segments=seg,
                 image_projector=image_projector,

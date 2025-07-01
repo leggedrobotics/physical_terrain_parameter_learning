@@ -318,7 +318,7 @@ def create_dataset_from_nodes(
             feat_extractor.set_original_size(W, H)
             if param.offline.augment:
                 img = transform_pipeline(img)
-            _, _, trans_img, compressed_feats = feat_extractor.extract(img)
+            trans_img, compressed_feats = feat_extractor.extract(img)
             feat_input, H, W = concat_feat_dict(compressed_feats)
             feat_input = feat_input.reshape(1, H, W, -1)
             feat_input = feat_input.permute(0, 3, 1, 2)

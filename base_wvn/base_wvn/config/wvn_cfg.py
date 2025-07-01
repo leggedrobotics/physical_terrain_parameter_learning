@@ -162,7 +162,6 @@ class ParamCollection(Serializable):
     class FeatParams:
         """Parameters for the feature extractor."""
 
-        segmentation_type: str = "pixel"
         feature_type: str = "dinov2"
         resize: bool = True
         input_size: int = 1078  # 1260 for dinov2 , 1078 for dinov2-wideangle camera

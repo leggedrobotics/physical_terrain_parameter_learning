@@ -17,7 +17,7 @@ import PIL.Image
 from .loss import PhyLoss
 import numpy as np
 from torchvision import transforms as T
-from typing import Union, Dict
+from typing import Union, Dict, Tuple
 from base_wvn import WVN_ROOT_DIR
 from sklearn.mixture import GaussianMixture
 import os
@@ -29,7 +29,6 @@ class FeatureExtractor:
     def __init__(
         self,
         device: str,
-        segmentation_type: str = "pixel",
         feature_type: str = "dinov2",
         input_size: int = 448,
         **kwargs,
@@ -41,7 +40,6 @@ class FeatureExtractor:
 
         """
         self._device = device
-        self._segmentation_type = segmentation_type
         self._feature_type = feature_type
         self._input_size = input_size
 
@@ -88,39 +86,26 @@ class FeatureExtractor:
         self.transform = self._create_transform()
         self.init_transform = False
 
-        # segmentation
-        if self._segmentation_type == "pixel":
-            pass
-        elif self._segmentation_type == "slic":
-            from fast_slic import Slic
-
-            self.slic = Slic(
-                num_components=kwargs.get("slic_num_components", 200),
-                compactness=kwargs.get("slic_compactness", 10),
-            )
-        else:
-            raise ValueError(f"Segmentation[{self._segmentation_type}] not supported!")
-
-    def extract(self, img, **kwargs):
+    def extract(
+        self, img: torch.Tensor
+    ) -> Tuple[torch.Tensor, Dict[Tuple[float, float], torch.Tensor]]:
         """Extract features from image
 
         Args:
             img (torch.tensor): Image tensor (B,C,H,W)
 
         Returns:
-            sparse_features (torch.tensor, shape:(B,num_segs or H*W,C)): Sparse features tensor
-            seg (torch.tensor, shape:(H,W)): Segmentation map
             transformed_img (torch.tensor, shape:(B,C,H,W)): Transformed image
-            compressed_feats (Dict): only in pixel segmentation, {(scale_h,scale_w):feat-->(B,C,H,W))}
+            compressed_feats (Dict): DINOv2 outputs feat in patches {(scale_h,scale_w):feat-->(B,C,H,W))}
         """
         if img.shape[-2] != self.target_height:
             transformed_img = self.transform(img)
         else:
             transformed_img = img
         # Compute features
-        compressed_feats = self.compute_features(transformed_img, **kwargs)
+        compressed_feats = self.compute_features(transformed_img)
         torch.cuda.empty_cache()
-        return None, None, transformed_img, compressed_feats
+        return transformed_img, compressed_feats
 
     def set_original_size(self, original_width: int, original_height: int):
         if self.init_transform is False and original_height != self.target_height:
@@ -144,10 +129,6 @@ class FeatureExtractor:
     @property
     def feature_type(self):
         return self._feature_type
-
-    @property
-    def segmentation_type(self):
-        return self._segmentation_type
 
     @property
     def resize_ratio(self):
@@ -213,7 +194,9 @@ class FeatureExtractor:
         self._device = device
         self.extractor.change_device(device)
 
-    def compute_features(self, img: torch.Tensor, **kwargs):
+    def compute_features(
+        self, img: torch.Tensor
+    ) -> Dict[Tuple[float, float], torch.Tensor]:
         img_internal = img.clone()
         B, C, H, W = img_internal.shape
 
@@ -279,7 +262,7 @@ def compute_phy_mask(
     if trans_img is None or compressed_feats is None:
         if feat_extractor is None:
             raise ValueError("feat_extractor is None!")
-        _, _, trans_img, compressed_feats = feat_extractor.extract(img)
+        trans_img, compressed_feats = feat_extractor.extract(img)
     feat_input, H, W = concat_feat_dict(compressed_feats)
     feat_input = feat_input.squeeze(0)
     output = model(feat_input)
@@ -548,7 +531,6 @@ def test_extractor():
     input_size = 1260
     extractor = FeatureExtractor(
         device,
-        segmentation_type="pixel",
         input_size=input_size,
         original_width=img.shape[-1],
         original_height=img.shape[-2],

@@ -124,7 +124,6 @@ class DecoderLightning(pl.LightningModule):
         B, C, H, W = self.test_img.shape
         self.feat_extractor = FeatureExtractor(
             device=self.params.run.device,
-            segmentation_type=self.params.feat.segmentation_type,
             input_size=self.params.feat.input_size,
             feature_type=self.params.feat.feature_type,
             interp=self.params.feat.interp,
@@ -601,7 +600,6 @@ def train_and_evaluate(param: ParamCollection):
         model.model.eval()
         feat_extractor = FeatureExtractor(
             device=param.run.device,
-            segmentation_type=param.feat.segmentation_type,
             input_size=param.feat.input_size,
             feature_type=param.feat.feature_type,
             interp=param.feat.interp,
