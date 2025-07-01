@@ -783,10 +783,12 @@ class Validator:
         )
 
         # Construct the path for gt_masks.pt
-        if param.offline.gt_model == "SEEM":
-            gt_masks_path = os.path.join(output_dir, "gt_masks_SEEM.pt")
-        elif param.offline.gt_model == "SAM":
+        if param.offline.gt_model == "SAM":
             gt_masks_path = os.path.join(output_dir, "gt_masks_SAM.pt")
+        else:
+            raise ValueError(
+                f"Unsupported gt_model: {param.offline.gt_model}. Supported models: SAM."
+            )
         img_path = os.path.join(output_dir, "mask_img.pt")
         # gt_masks_path = os.path.join(output_dir, 'gt_masks.pt')
 
@@ -797,8 +799,10 @@ class Validator:
             # Generate gt_masks
             if param.offline.gt_model == "SAM":
                 gt_masks, cur_imags = SAM_label_mask_generate(param, nodes)
-            elif param.offline.gt_model == "SEEM":
-                gt_masks, cur_imags = SEEM_label_mask_generate(param, nodes)
+            else:
+                raise ValueError(
+                    f"Unsupported gt_model: {param.offline.gt_model}. Supported models: SAM."
+                )
             torch.save(cur_imags, img_path)
             torch.save(gt_masks, gt_masks_path)
         self.gt_masks = gt_masks

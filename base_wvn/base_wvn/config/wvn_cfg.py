@@ -163,11 +163,9 @@ class ParamCollection(Serializable):
         """Parameters for the feature extractor."""
 
         segmentation_type: str = "pixel"
-        feature_type: str = "dinov2"  # dinov2, focal
+        feature_type: str = "dinov2"
         resize: bool = True
-        input_size: int = (
-            1078  # 1260 for dinov2 , 1280 for focal,1078 for dinov2-wideangle camera
-        )
+        input_size: int = 1078  # 1260 for dinov2 , 1078 for dinov2-wideangle camera
         interp: str = "bilinear"
         center_crop: Tuple[bool, int, int] = (True, 910, 910)  # crop or not, H,W
         physical_dim: int = 2
@@ -222,9 +220,7 @@ class ParamCollection(Serializable):
 
         @dataclass
         class SimpleMlpCfgParams:
-            input_size: int = (
-                384  # 2880 for focal, 384 is embedding dim from dinov2-small
-            )
+            input_size: int = 384  # 384 is embedding dim from dinov2-small
             # hidden_sizes: List[int] = field(default_factory=lambda: [32, 8, 32, 2])  # S
             # hidden_sizes: List[int] = field(default_factory=lambda: [128, 32, 128, 2])   # M
             # hidden_sizes: List[int] = field(default_factory=lambda: [512, 128, 512, 2])
@@ -303,7 +299,7 @@ class ParamCollection(Serializable):
 
         random_datasample: Tuple[bool, int] = (False, 40)
         upload_error_stats_in_training: bool = True
-        gt_model: str = "SAM"  # 'SEEM' or 'SAM'
+        gt_model: str = "SAM"
         SAM_type: str = "vit_h"
         SAM_ckpt: str = "/media/chenc/Chen/sam_vit_h_4b8939.pth"
         # SAM_ckpt='/media/chen/UDisk1/sam_hq_vit_h.pth'

@@ -4,7 +4,6 @@
 # See LICENSE file in the project root for details.
 #
 #
-from .node_for_ros import NodeForROS
 from .confidence_generator import ConfidenceGenerator
 from .feat_extractor import *
 from .image_projector import ImageProjector
@@ -25,4 +24,3 @@ from .visualizer import (
 )
 from .loss import PhyLoss
 from .foot_contact_filter import FootFilter
-# from .focal_interface import FocalInterface

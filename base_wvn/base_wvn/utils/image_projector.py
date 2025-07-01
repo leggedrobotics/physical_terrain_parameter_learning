@@ -41,13 +41,6 @@ class ImageProjector:
         # Initialize camera with scaled parameters
         self.camera = PinholeCamera(K, E, h, w)
 
-        # Preallocate masks
-        B = self.camera.batch_size
-        C = 3  # RGB channel output
-        H = self.camera.height.item()
-        W = self.camera.width.item()
-        # Create output mask
-        self.masks = torch.zeros((B, C, H, W), dtype=torch.float32, device=device)
         # self.timer=ClassTimer(
         #     objects=[self,
         #              ],
@@ -171,5 +164,3 @@ class ImageProjector:
         self.masks[self.masks == 0.0] = torch.nan
 
         return self.masks, image_overlay, projected_points, valid_points
-
-

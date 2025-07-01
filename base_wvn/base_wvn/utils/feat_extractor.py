@@ -8,7 +8,6 @@ import torch
 import torch.nn.functional as F
 from .dinov2_interface import Dinov2Interface
 
-# from .focal_interface import FocalInterface
 from .visualizer import (
     plot_overlay_image,
     plot_image,
@@ -78,9 +77,6 @@ class FeatureExtractor:
         if self._feature_type == "dinov2":
             self.patch_size = 14
             self.extractor = Dinov2Interface(device, **kwargs)
-        # elif self._feature_type == "focal":
-        #     self.patch_size = 32
-        #     self.extractor=FocalInterface(device, **kwargs)
         else:
             raise ValueError(f"Extractor[{self._feature_type}] not supported!")
 
@@ -121,17 +117,13 @@ class FeatureExtractor:
             transformed_img = self.transform(img)
         else:
             transformed_img = img
-        # Compute segmentation
-        # seg = self.compute_segments(transformed_img, **kwargs)
         # Compute features
         compressed_feats = self.compute_features(transformed_img, **kwargs)
-        # Sparsify features
-        # sparse_features,compressed_feats = self.sparsify_features(dense_features, seg)
         torch.cuda.empty_cache()
         return None, None, transformed_img, compressed_feats
 
     def set_original_size(self, original_width: int, original_height: int):
-        if self.init_transform == False and original_height != self.target_height:
+        if self.init_transform is False and original_height != self.target_height:
             self.original_height = original_height
             self.original_width = original_width
 
@@ -221,28 +213,6 @@ class FeatureExtractor:
         self._device = device
         self.extractor.change_device(device)
 
-    def compute_segments(self, img: torch.Tensor, **kwargs):
-        if self._segmentation_type == "pixel":
-            seg = self.segment_pixelwise(img, **kwargs)
-        elif self._segmentation_type == "slic":
-            seg = self.segment_slic(img, **kwargs)
-        return seg
-
-    def segment_pixelwise(self, img: torch.Tensor, **kwargs):
-        # Generate pixel-wise segmentation
-        B, C, H, W = img.shape
-        seg = torch.arange(0, H * W, 1).reshape(H, W).to(self._device)
-        # seg = seg.unsqueeze(0).repeat(B, 1, 1)
-        return seg
-
-    def segment_slic(self, img: torch.Tensor, **kwargs):
-        # transform image to numpy
-        B, C, H, W = img.shape
-        img = img.permute(0, 2, 3, 1)
-        img_np = img[0].cpu().numpy()
-        seg = self.slic.iterate(np.uint8(np.ascontiguousarray(img_np) * 255))
-        return torch.from_numpy(seg).to(self._device).type(torch.long)
-
     def compute_features(self, img: torch.Tensor, **kwargs):
         img_internal = img.clone()
         B, C, H, W = img_internal.shape
@@ -254,102 +224,10 @@ class FeatureExtractor:
             ratio_h = H / feat.shape[-2]
             ratio_w = W / feat.shape[-1]
             feat_dict[(ratio_h, ratio_w)] = feat
-        elif self._feature_type == "focal":
-            feat_dict = self.extractor.inference(img_internal)
         else:
             raise ValueError(f"Extractor[{self._feature_type}] not supported!")
 
         return feat_dict
-
-    def sparsify_features(
-        self,
-        dense_features: Union[torch.Tensor, Dict[str, torch.Tensor]],
-        seg: torch.Tensor,
-        cumsum_trick=False,
-    ):
-        """Sparsify features
-        Input:
-            dense_features (B,C,H,W): dense features tensor or dict of dense features tensors
-            seg (H,W): segmentation map
-
-        Return:
-            sparse_features (B,H*W/segs_num,C)
-            compressed_feat (Dict): only in pixel segmentation
-
-        """
-        compressed_feat = {}
-        if isinstance(dense_features, dict):
-            compressed_feat = None
-            # Multiscale feature pyramid extraction
-            scales_h = [
-                seg.shape[0] / feat.shape[2] for feat in dense_features.values()
-            ]
-            scales_w = [
-                seg.shape[1] / feat.shape[3] for feat in dense_features.values()
-            ]
-            # upsampling the feat of each scale
-            resized_feats = [
-                F.interpolate(feat.type(torch.float32), scale_factor=(scale_h, scale_w))
-                for scale_h, scale_w, feat in zip(
-                    scales_h, scales_w, dense_features.values()
-                )
-            ]
-            sparse_features = []
-            if self._segmentation_type != "pixel":
-                compressed_feat = None
-                for i in range(seg.max() + 1):
-                    single_segment_feature = []
-                    for resized_feat in resized_feats:
-                        m = seg == i
-                        x, y = torch.where(m)
-                        avg_feat_per_seg = torch.mean(resized_feat[:, :, x, y], dim=-1)
-                        single_segment_feature.append(avg_feat_per_seg)
-                    single_segment_feature = torch.cat(single_segment_feature, dim=1)
-                    sparse_features.append(single_segment_feature)
-            else:
-                for scale_h, scale_w, feat in zip(
-                    scales_h, scales_w, dense_features.values()
-                ):
-                    compressed_feat[(scale_h, scale_w)] = feat
-                resized_feats = torch.cat(resized_feats, dim=1)
-                resized_feats = resized_feats.permute(0, 2, 3, 1)
-                sparse_features = resized_feats.reshape(
-                    resized_feats.shape[0],
-                    resized_feats.shape[1] * resized_feats.shape[2],
-                    -1,
-                )
-                return sparse_features, compressed_feat
-
-        else:
-            # check if las two dim of seg is equal to dense_features dim, if not ,resize the feat
-            scale_h = seg.shape[0] / dense_features.shape[2]
-            scale_w = seg.shape[1] / dense_features.shape[3]
-            if seg.shape[-2:] != dense_features.shape[-2:]:
-                resized_features = F.interpolate(
-                    dense_features.type(torch.float32), scale_factor=(scale_h, scale_w)
-                )
-            # Sparsify features
-            sparse_features = []
-            if self._segmentation_type != "pixel":
-                compressed_feat = None
-                for i in range(seg.max() + 1):
-                    m = seg == i
-                    x, y = torch.where(m)
-                    avg_feat_per_seg = torch.mean(resized_features[:, :, x, y], dim=-1)
-                    sparse_features.append(avg_feat_per_seg)
-            else:
-                compressed_feat[(scale_h, scale_w)] = dense_features
-                resized_features = resized_features.permute(0, 2, 3, 1)
-                sparse_features = resized_features.reshape(
-                    resized_features.shape[0],
-                    resized_features.shape[1] * resized_features.shape[2],
-                    -1,
-                )
-                return sparse_features, compressed_feat
-
-        # Concatenate features
-        sparse_features = torch.stack(sparse_features, dim=1)
-        return sparse_features, compressed_feat
 
 
 def concat_feat_dict(feat_dict: Dict[tuple, torch.Tensor]):
