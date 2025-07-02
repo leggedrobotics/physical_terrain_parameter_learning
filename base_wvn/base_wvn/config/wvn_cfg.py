@@ -32,7 +32,7 @@ class ParamCollection(Serializable):
         model_path: str = "model"
         pub_pred_as_layer: str = "RGB"  # single or RGB
         pub_which_pred: str = "fric"  # fric or stiff
-        # ... [rest of the attributes]
+        verbose: bool = True
 
     general: GeneralParams = GeneralParams()
 
@@ -176,14 +176,8 @@ class ParamCollection(Serializable):
         w_pred: float = 0.1  # 0.1
         w_reco: float = 0.9  # 0.9
         method: str = "running_mean"
-        confidence_std_factor: float = 1.0
-        confidence_threshold: float = 0.5
-        confidence_mode: str = "gmm_1d"  # gmm_1d,gmm_all,fixed
-        init_precision: List[float] = field(default_factory=lambda: [0.1, 10.0])
-        init_mean: List[float] = field(default_factory=lambda: [0.0, 2.0])
-        log_enabled: bool = False
-        log_folder: str = "/tmp"
-        verbose: bool = True
+        confidence_threshold: float = 0.5  # only for "fixed" confidence mode
+        confidence_mode: str = "gmm_1d"  # gmm_1d, or fixed
 
         reco_loss_type: str = "mse"  # mse or cosine
 

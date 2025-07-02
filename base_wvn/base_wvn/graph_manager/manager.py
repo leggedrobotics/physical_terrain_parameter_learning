@@ -85,9 +85,6 @@ class Manager:
             w_pred=loss_params.w_pred,
             w_reco=loss_params.w_reco,
             method=loss_params.method,
-            confidence_std_factor=loss_params.confidence_std_factor,
-            log_enabled=loss_params.log_enabled,
-            log_folder=loss_params.log_folder,
             reco_loss_type=loss_params.reco_loss_type,
         ).to(self._device)
         self._loss = torch.tensor([torch.inf])
@@ -156,7 +153,9 @@ class Manager:
         last_main_node = self._main_graph.get_last_node()
         last_sub_node = self.last_sub_node
         if last_main_node is not None and last_sub_node is not None:
-            self.distance_between_last_main_node_and_last_sub_node = last_main_node.distance_to(last_sub_node)
+            self.distance_between_last_main_node_and_last_sub_node = (
+                last_main_node.distance_to(last_sub_node)
+            )
 
     @accumulate_time
     def add_main_node(self, node: MainNode, verbose: bool = False, logger=None):
@@ -577,8 +576,6 @@ class Manager:
                     self._loss, confidence, loss_dict = self._phy_loss(
                         dataset,
                         res,
-                        step=self._step,
-                        log_step=log_step,
                         batch_idx=batch_idx,
                     )
 

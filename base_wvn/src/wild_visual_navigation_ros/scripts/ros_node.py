@@ -79,11 +79,9 @@ class RosNode:
         self.center_crop = self.param.feat.center_crop
 
         # Loss parameters
-        self.confidence_std_factor = self.param.loss.confidence_std_factor
         self.method = self.param.loss.method
-        self.log_enabled = self.param.loss.log_enabled
-        self.log_folder = self.param.loss.log_folder
-        self.verbose = self.param.loss.verbose
+
+        self.verbose = self.param.general.verbose
 
         if "v4l2" in self.camera_topic:
             self.camera_in_base = self.param.roscfg.rear_hdr_camera_in_base

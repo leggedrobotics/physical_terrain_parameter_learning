@@ -127,9 +127,6 @@ class DecoderLightning(pl.LightningModule):
             w_pred=loss_params.w_pred,
             w_reco=loss_params.w_reco,
             method=loss_params.method,
-            confidence_std_factor=loss_params.confidence_std_factor,
-            log_enabled=loss_params.log_enabled,
-            log_folder=loss_params.log_folder,
             reco_loss_type=loss_params.reco_loss_type,
         )
         self.validator = Validator(params)
@@ -147,7 +144,7 @@ class DecoderLightning(pl.LightningModule):
         if len(xs.shape) != 2 or len(ys.shape) != 2:
             raise ValueError("xs and ys must have shape of 2")
         res = self.model(xs)
-        loss, confidence, loss_dict = self.loss_fn((xs, ys), res, step=self.step)
+        loss, confidence, loss_dict = self.loss_fn((xs, ys), res)
         self.log("train_loss", loss)
 
         if self.params.offline.upload_error_stats_in_training:
