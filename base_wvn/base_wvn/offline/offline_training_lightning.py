@@ -141,7 +141,6 @@ class DecoderLightning(pl.LightningModule):
                 ),
                 overlay_img,
             )
-        # if batch_idx==0:
         self.step += 1
         return loss
 

@@ -228,40 +228,6 @@ class ParamCollection(Serializable):
 
         simple_mlp_cfg: SimpleMlpCfgParams = SimpleMlpCfgParams()
 
-        @dataclass
-        class SeperateMLPCfgParams:
-            input_size: int = 384
-            hidden_sizes: List[int] = field(default_factory=lambda: [256, 64, 256, 2])
-
-            def to_dict(self):
-                return vars(self)
-
-        seperate_mlp_cfg: SeperateMLPCfgParams = SeperateMLPCfgParams()
-
-        @dataclass
-        class RndMLPCfgParams:
-            input_size: int = 384
-            hidden_sizes_target: List[int] = field(default_factory=lambda: [128, 32])
-            hidden_sizes_pred: List[int] = field(default_factory=lambda: [128, 32])
-            pred_head: int = 2
-
-            def to_dict(self):
-                return vars(self)
-
-        rnd_mlp_cfg: RndMLPCfgParams = RndMLPCfgParams()
-
-        @dataclass
-        class SeprndMLPCfgParams:
-            input_size: int = 384
-            hidden_sizes_target: List[int] = field(default_factory=lambda: [256, 64])
-            hidden_sizes_pred: List[int] = field(default_factory=lambda: [256, 64])
-            pred_head: int = 2
-
-            def to_dict(self):
-                return vars(self)
-
-        seprnd_mlp_cfg: SeprndMLPCfgParams = SeprndMLPCfgParams()
-
     model: ModelParams = ModelParams()
 
     @dataclass
@@ -281,16 +247,12 @@ class ParamCollection(Serializable):
         # img_bag_path:str='/media/chen/Chen/2024-01-25-white-board/1st/2024-01-25-19-36-11_anymal-d020-npc_0.bag'
         # img_bag_path:str='/media/chen/Chen/rosbag_white/2nd/2024-01-16-21-45-48_anymal-d020-npc_0-003.bag'
         # img_bag_path:str='/media/chen/Chen/rosbag_lee/2023-12-03-11-57-12_anymal-d020-npc_1-004.bag'
-        traindata_option: str = (
-            "each_full"  # 'each_full' or 'each_partial' or 'all_full' or 'all_partial'
-        )
 
         test_images: bool = False  # output vis for image_buffer
         test_nodes: bool = False  # output vis for node data
         test_video: bool = False  # output dense pred video
         process_option: str = "all"  # 'all' or 'first_half' or 'first_100
 
-        random_datasample: Tuple[bool, int] = (False, 40)
         upload_error_stats_in_training: bool = True
         gt_model: str = "SAM"
         SAM_type: str = "vit_h"

@@ -595,7 +595,6 @@ class Manager:
             self._step += 1
 
             return_dict["total_loss"] = self._loss.item()
-            return_dict["confidence"] = confidence.mean().item()
             return_dict["loss_reco"] = loss_reco.item()
             return_dict["loss_pred"] = loss_pred.item()
 
