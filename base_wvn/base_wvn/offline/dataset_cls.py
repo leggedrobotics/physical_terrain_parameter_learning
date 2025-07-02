@@ -5,26 +5,7 @@
 #
 #
 import torch
-import random
-from typing import List
 from ..model import VD_dataset
-
-
-class BigDataset(torch.utils.data.Dataset):
-    def __init__(self, data: List[VD_dataset], sample_size: int = None):
-        self.data = []
-        for d in data:
-            self.data = self.data + d.batches
-
-        # If a sample size is specified and is less than the total data size
-        if sample_size and sample_size < len(self.data):
-            self.data = random.sample(self.data, sample_size)
-
-    def __getitem__(self, index):
-        return self.data[index]
-
-    def __len__(self):
-        return len(self.data)
 
 
 class EntireDataset(torch.utils.data.Dataset):

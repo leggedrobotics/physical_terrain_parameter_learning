@@ -302,20 +302,13 @@ class ParamCollection(Serializable):
         hist_colormap: str = "plasma"
         colored_mask_alpha: float = 0.7
 
-        plot_tsne: bool = False
         plot_overlay: bool = False
         plot_nodes: bool = False
         plot_masks_compare: bool = False
 
-        fake_phy: bool = False
         augment: bool = True
 
         analyze_path: str = "results/analyze"
-        white_board_gt_masks: str = "white_masks.pt"
-        ground_gt_masks: str = "ground_masks.pt"
-
-        white_gt_val = (0.0, 0.2)
-        ground_gt_val = (0.3, 1.0)
 
     offline: OfflineParams = OfflineParams()
 

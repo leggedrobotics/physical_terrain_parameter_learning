@@ -4,7 +4,7 @@
 # See LICENSE file in the project root for details.
 #
 #
-from .confidence_generator import ConfidenceGenerator
+from .confidence_mask_generator import ConfidenceGenerator
 from .feat_extractor import *
 from .image_projector import ImageProjector
 from .meshes import (
@@ -19,7 +19,6 @@ from .visualizer import (
     plot_image,
     plot_images_side_by_side,
     plot_images_in_grid,
-    plot_tsne,
     add_color_bar_and_save,
 )
 from .loss import PhyLoss

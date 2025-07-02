@@ -21,7 +21,6 @@ from ..utils import (
     plot_image,
     plot_images_side_by_side,
     plot_images_in_grid,
-    plot_tsne,
     compute_pred_phy_loss,
 )
 from ..model import VD_dataset
@@ -286,33 +285,11 @@ def create_dataset_from_nodes(
     param: ParamCollection,
     nodes: List[MainNode],
     feat_extractor: FeatureExtractor,
-    fake_phy: bool = False,
 ):
     # use new_features if we want to test new feat_extractor
     # output dataset
-    first_timestamp = nodes[0].timestamp
     for node in nodes:
         img = node.image.to(param.run.device)
-        if fake_phy:
-            # fake phy mask using maunally assigned values
-            if node.timestamp < 1670683304:
-                fake_val = 0.8
-            else:
-                fake_val = 0.4
-            # Create a mask for non-NaN values
-            non_nan_mask = ~torch.isnan(node.supervision_mask)
-
-            # Assign fake val to non-NaN positions
-            node.supervision_mask[non_nan_mask] = fake_val
-
-            if node.timestamp > 1670683300 and node.timestamp < 1670683301:
-                H, W = node.supervision_mask.shape[-2:]
-                end_idx = 2 * H // 3
-                non_nan_mask_bottom_third = ~torch.isnan(
-                    node.supervision_mask[:, :end_idx, :]
-                )
-                node.supervision_mask[:, :end_idx, :][non_nan_mask_bottom_third] = 0.4
-
         if param.feat.feature_type != node.feature_type or param.offline.augment:
             if param.offline.augment:
                 img = transform_pipeline(img)
@@ -406,15 +383,6 @@ def conf_mask_generate(
         losses.append(loss_reco)
         torch.cuda.empty_cache()
 
-        loss_reco_raw = res_dict["loss_reco_raw"]
-        conf_mask_raw = res_dict["conf_mask_raw"]
-        if param.offline.plot_tsne:
-            plot_tsne(
-                conf_mask_raw,
-                loss_reco_raw,
-                title=f"node_{i}_t-SNE with Confidence Highlighting",
-                path=os.path.join(folder_path, "tsne"),
-            )
     all_reproj_masks = torch.cat(reproj_masks, dim=0)
     torch.cuda.empty_cache()
     all_losses = torch.cat(losses, dim=0)
@@ -456,141 +424,6 @@ def conf_mask_generate(
     }
 
 
-def phy_mask_total_accuracy(
-    param: ParamCollection,
-    nodes: List[MainNode],
-    feat_extractor: FeatureExtractor,
-    model: pl.LightningModule,
-):
-    """
-    Here we load the white_board masks and ground masks to calculate the accuracy of the phy mask.
-    We'll hard code the GT values for the regions according to the digital twin result.
-
-    Attention: only friction is handled here. Only having the GT white/ground masks for env:vowhite_1st
-    """
-
-    reproj_masks = []
-    ori_imgs = []
-    white_board_masks = torch.load(
-        os.path.join(
-            WVN_ROOT_DIR,
-            param.offline.data_folder,
-            "train",
-            param.offline.env,
-            param.offline.white_board_gt_masks,
-        )
-    )
-    ground_masks = torch.load(
-        os.path.join(
-            WVN_ROOT_DIR,
-            param.offline.data_folder,
-            "train",
-            param.offline.env,
-            param.offline.ground_gt_masks,
-        )
-    )
-    folder_path = os.path.join(
-        WVN_ROOT_DIR, param.offline.ckpt_parent_folder, model.time
-    )
-    # gt values from digital twin experiments
-    white_gt_val = param.offline.white_gt_val
-    ground_gt_val = param.offline.ground_gt_val
-
-    white_error_nodes = []
-    ground_error_nodes = []
-
-    for i, node in enumerate(nodes):
-        img = node.image.to(param.run.device)
-        reproj_mask = (
-            node.supervision_signal_valid[0]
-            .unsqueeze(0)
-            .unsqueeze(0)
-            .to(param.run.device)
-        )
-        reproj_masks.append(reproj_mask)
-        ori_imgs.append(img)
-        res_dict = compute_phy_mask(
-            img,
-            feat_extractor,
-            model.model,
-            model.loss_fn,
-            param.loss.confidence_threshold,
-            param.loss.confidence_mode,
-            False,
-            i,
-            time=model.time,
-            image_name="node" + str(node.timestamp),
-            param=param,
-            label_mask=node._supervision_mask,
-        )
-        pred_phy_mask = res_dict["output_phy"]  # (2,H,W)
-        white_board_masks[i][0] = torch.clip(white_board_masks[i][0], 0, 1)
-        white_pred = pred_phy_mask[0][white_board_masks[i][0]]
-        ground_pred = pred_phy_mask[0][ground_masks[i][0]]
-
-        white_pred_mean = torch.nanmean(white_pred)
-        ground_pred_mean = torch.nanmean(ground_pred)
-        print(
-            f"Node {i} White board Friction Mean: {round(white_pred_mean.item(),2)}, Ground Mean: {round(ground_pred_mean.item(),2)}"
-        )
-
-        mask_gt = white_pred > white_gt_val[1]
-        mask_between = (white_pred >= white_gt_val[0]) & (white_pred <= white_gt_val[1])
-        mask_lt = white_pred < white_gt_val[0]
-
-        # Apply conditions
-        # Subtract 0.3 from values > 0.3
-        white_pred[mask_gt] -= white_gt_val[1]
-        # Set values in [0.1, 0.3] to 0
-        white_pred[mask_between] = 0
-        # Set values < 0.1 to 0.1
-        white_pred[mask_lt] = white_gt_val[0] - white_pred[mask_lt]
-
-        error_white = torch.nan_to_num(white_pred)  # Replace NaNs with 0
-        white_error_nodes.append(error_white)
-        mask_gt = ground_pred > ground_gt_val[1]
-        mask_between = (ground_pred >= ground_gt_val[0]) & (
-            ground_pred <= ground_gt_val[1]
-        )
-        mask_lt = ground_pred < ground_gt_val[0]
-
-        ground_pred[mask_gt] -= ground_gt_val[1]
-        ground_pred[mask_between] = 0
-        ground_pred[mask_lt] = ground_gt_val[0] - ground_pred[mask_lt]
-
-        error_ground = torch.nan_to_num(ground_pred)
-        ground_error_nodes.append(error_ground)
-
-    file_path = os.path.join(folder_path, "phy_pred_accuracy(GT_digital_twin).txt")
-    white_error_nodes = torch.cat(white_error_nodes)
-    ground_error_nodes = torch.cat(ground_error_nodes)
-    fric_mean_white = torch.mean(white_error_nodes)
-    fric_mean_ground = torch.mean(ground_error_nodes)
-    fric_std_white = torch.std(white_error_nodes)
-    fric_std_ground = torch.std(ground_error_nodes)
-    with open(file_path, "a") as file:
-        file.write(f"{param.general.name}\n")
-        file.write(
-            f"Overall White board Friction Error Mean: {round(fric_mean_white.item(),2)}, STD:{round(fric_std_white.item(),2)}\n"
-        )
-        file.write(
-            f"Overall Ground Error Mean: {round(fric_mean_ground.item(),2)}, STD: {round(fric_std_ground.item(),2)}\n"
-        )
-
-    print("Overall loss statistics saved to phy_pred_accuracy(GT_digital_twin).txt")
-    both_error_nodes = torch.cat([white_error_nodes, ground_error_nodes], dim=0)
-    fric_mean_both = torch.mean(both_error_nodes)
-    fric_std_both = torch.std(both_error_nodes)
-    return {
-        "digital_twin_fric_error_white_mean": fric_mean_white,
-        "digital_twin_fric_error_white_std": fric_std_white,
-        "digital_twin_fric_error_ground_mean": fric_mean_ground,
-        "digital_twin_fric_error_ground_std": fric_std_ground,
-        "digital_twin_fric_error_both_mean": fric_mean_both,
-        "digital_twin_fric_error_both_std": fric_std_both,
-    }
-
-
 def calculate_uncertainty_plot(
     all_losses: torch.Tensor,
     all_conf_masks: torch.Tensor,
@@ -621,14 +454,7 @@ def calculate_uncertainty_plot(
         reproj_mask_losses = flattened_losses[flattened_reproj_masks]
 
     unconf_mask_losses = flattened_losses[~flattened_conf_masks]
-    # Sample a fixed number of points from all losses to balance the scale
-    # sample_size = min(10000, len(flattened_losses))
-    # losses_sampled = np.random.choice(flattened_losses, sample_size, replace=False)
 
-    # sample_size = min(3000, len(flattened_losses))
-    # conf_sampled = np.random.choice(conf_mask_losses, sample_size, replace=False)
-    # sample_size = min(1000, len(flattened_losses))
-    # reproj_sampled = np.random.choice(reproj_mask_losses, sample_size, replace=False)
     if all_reproj_masks is not None:
         # Define the bin edges based on the minimum and maximum loss values and the desired bin size
         min_loss = min(
@@ -650,23 +476,10 @@ def calculate_uncertainty_plot(
             if conf_mask_losses.shape[0] > 0
             else flattened_losses.max(),
         )
-    # bins = np.arange(min_loss, max_loss + bin_size, bin_size)
     bins = np.linspace(min_loss, max_loss, num_bins)
     # Plot the histogram
     plt.figure(figsize=(2.5, 1.8))
 
-    # # Histogram for all losses in grey
-    # # plt.hist(flattened_losses, bins, color='grey', alpha=1.0, label='Sampled All Losses',density=False)
-    # plt.hist(unconf_mask_losses, bins, color='red', alpha=0.7, label='Un-confident Mask',density=False)
-    # # Histogram for conf_mask_losses in orange
-    # plt.hist(conf_mask_losses, bins, color='orange', alpha=0.7, label='Confidence Mask',density=False)
-
-    # if all_reproj_masks is not None:
-    #     # Histogram for reproj_mask_losses in blue
-    #     plt.hist(reproj_mask_losses, bins, color='blue', alpha=0.5, label='Reprojection Mask',density=False)
-
-    # Define custom colors based on the coolwarm palette for conf and unconf masks
-    num_colors = num_bins  # Number of colors in the colormap
     # cmap = plt.get_cmap('coolwarm')
     cmap = sns.color_palette(colormap, as_cmap=True)
 
@@ -752,33 +565,6 @@ def create_colored_lossimg(
     unconf_color,
 ):
     H, W = loss_reco_resized.shape[-2:]
-    # colored_loss_image = np.zeros((H, W, 3))  # Initialize a 3-channel RGB image
-
-    # # Flatten the loss_reco_resized for processing
-    # loss_flat = loss_reco_resized.flatten().cpu().numpy()
-
-    # # Map each loss value to a bin index
-    # bin_indices = np.digitize(loss_flat, bins) - 1  # -1 because np.digitize bins start from 1
-
-    # # Initialize an RGB image based on the colormap
-    # rgb_image = np.zeros((loss_flat.shape[0], 3))
-
-    # # Map each bin index to its corresponding color
-    # for i, bin_idx in enumerate(bin_indices):
-    #     if bin_idx < conf_bin_num:
-    #         # Use conf_color
-    #         rgb_image[i] = conf_color[bin_idx % len(conf_color)][:3]  # Ignore alpha channel
-    #     else:
-    #         # Use unconf_color
-    #         rgb_image[i] = unconf_color[bin_idx % len(unconf_color)][:3]  # Ignore alpha channel
-
-    # # Reshape the RGB image back to its original dimensions [H, W, 3]
-    # colored_loss_image = rgb_image.reshape((H, W, 3))
-    # plt.imshow(colored_loss_image)
-    # plt.title("Loss Visualization")
-    # plt.axis('off')  # Hide axis
-    # plt.savefig('loss_visualization.pdf')
-    # plt.show()
     # Convert bin edges to bin centers for accurate mapping
     bin_centers = bins[1:]
     loss_reco_resized = loss_reco_resized.detach().squeeze(0, 1).cpu().numpy()
@@ -894,63 +680,6 @@ def plot_masks_compare(
                 param=param,
             )
             print("Saved fig for chunk", int(i / cols))
-
-
-def masks_stats(
-    gt_masks: torch.Tensor,
-    conf_masks: torch.Tensor,
-    output_file="stats.txt",
-    name="debug",
-):
-    """
-    Here we calculate the over-confidence and under-confidence statistics tested on all nodes
-    """
-
-    H, W = gt_masks.shape[-2:]
-    delta = conf_masks.type(torch.int) - gt_masks.type(torch.int)
-    with open(output_file, "a") as file:
-        # Calculate over-confidence
-        diff_mask = torch.clamp(delta, min=0)
-        ones_count = diff_mask.type(torch.float32).sum(dim=[2, 3])
-        total_elements = H * W
-        deviation = ones_count / total_elements * 100.0
-        over_conf_mean = deviation.mean().item()
-        over_conf_std = deviation.std().item()
-        file.write(name + "\n")
-        print(
-            f"Average Over-confidence: {round(over_conf_mean,3)}%, Std. Dev: {round(over_conf_std,3)}%"
-        )
-        over_conf_stats = f"Average Over-confidence: {round(over_conf_mean, 3)}%, Std. Dev: {round(over_conf_std, 3)}%\n"
-        file.write(over_conf_stats)
-        # Calculate under-confidence
-        diff_mask = torch.clamp(delta, max=0)
-        m_ones_count = diff_mask.type(torch.float32).sum(dim=[2, 3])
-        m_deviation = -m_ones_count / total_elements * 100.0
-        under_conf_mean = m_deviation.mean().item()
-        under_conf_std = m_deviation.std().item()
-        print(
-            f"Average Under-confidence: {round(under_conf_mean,3)}%, Std. Dev: {round(under_conf_std,3)}%"
-        )
-        under_conf_stats = f"Average Under-confidence: {round(under_conf_mean, 3)}%, Std. Dev: {round(under_conf_std, 3)}%\n"
-        file.write(under_conf_stats)
-
-        # calculate mask accuracy for each node
-        acc = 100.0 - deviation - m_deviation
-        acc_mean = acc.mean().item()
-        acc_std = acc.std().item()
-        acc_stats = (
-            f"Average Mask Accuracy: {round(acc_mean, 3)}%, Std:{round(acc_std,3)}\n"
-        )
-        file.write(acc_stats)
-        for i in range(acc.shape[0]):
-            file.write(f"Node {i} Mask Accuracy: {round(acc[i].item(), 3)}%\n")
-
-    return {
-        "over_conf_mean": over_conf_mean,
-        "over_conf_std": over_conf_std,
-        "under_conf_mean": under_conf_mean,
-        "under_conf_std": under_conf_std,
-    }
 
 
 def masks_iou_stats(

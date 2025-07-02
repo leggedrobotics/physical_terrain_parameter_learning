@@ -29,68 +29,6 @@ from pytorch_lightning.loggers.neptune import NeptuneLogger
 from pytorch_lightning import Trainer
 
 
-class AverageTrainingTimeCallback(pl.Callback):
-    def __init__(self, warmup_steps=10, mode="gpu"):
-        assert mode in ["cpu", "gpu"], "mode must be either 'cpu' or 'gpu'"
-        self.warmup_steps = warmup_steps
-        self.mode = mode
-        self.total_time = 0
-        self.num_steps = 0
-        self.step_count = 0
-        self.memory_usage = []
-
-    def on_train_batch_start(self, trainer, pl_module, batch, batch_idx):
-        if self.mode == "gpu":
-            self.start_event = torch.cuda.Event(enable_timing=True)
-            self.end_event = torch.cuda.Event(enable_timing=True)
-            self.start_event.record()
-        else:
-            self.start_time = time.time()
-
-    def on_after_backward(self, trainer, pl_module):
-        if self.mode == "gpu":
-            self.end_event.record()
-            torch.cuda.synchronize()  # Wait for the events to be recorded
-            elapsed_time = self.start_event.elapsed_time(
-                self.end_event
-            )  # Elapsed time in milliseconds
-        else:
-            self.end_time = time.time()
-            elapsed_time = (
-                self.end_time - self.start_time
-            ) * 1000  # Convert to milliseconds
-
-        self.step_count += 1
-        if self.step_count > self.warmup_steps:
-            self.total_time += elapsed_time
-            self.num_steps += 1
-            if self.mode == "gpu":
-                mem_allocated = torch.cuda.memory_allocated()
-                self.memory_usage.append(mem_allocated)
-
-    def on_train_epoch_end(self, trainer, pl_module):
-        if self.num_steps > 0:
-            avg_time_per_step = self.total_time / self.num_steps
-            avg_memory_usage = (
-                sum(self.memory_usage) / len(self.memory_usage)
-                if self.memory_usage
-                else 0
-            )
-            pl_module.log(
-                "avg_training_time_per_step", avg_time_per_step, on_epoch=True
-            )
-            pl_module.log("avg_memory_usage", avg_memory_usage, on_epoch=True)
-            print(
-                f"Average training time per step (after warmup): {avg_time_per_step:.2f} ms"
-            )
-            print(
-                f"Average memory usage per step: {avg_memory_usage / (1024 ** 2):.2f} MB"
-            )
-        else:
-            print("Warmup period, average training time per step not recorded yet.")
-            print("Warmup period, average memory usage per step not recorded yet.")
-
-
 class DecoderLightning(pl.LightningModule):
     def __init__(self, model, params: ParamCollection):
         super().__init__()
@@ -158,34 +96,7 @@ class DecoderLightning(pl.LightningModule):
             self.log("stiff_error_std", stats_dict["stiffness_std"])
             self.log("iou_mean", stats_dict["iou_mean"])
             self.log("iou_std", stats_dict["iou_std"])
-            self.log(
-                "digital_twin_fric_error_white_mean",
-                stats_dict["digital_twin_fric_error_white_mean"],
-            )
-            self.log(
-                "digital_twin_fric_error_white_std",
-                stats_dict["digital_twin_fric_error_white_std"],
-            )
-            self.log(
-                "digital_twin_fric_error_ground_mean",
-                stats_dict["digital_twin_fric_error_ground_mean"],
-            )
-            self.log(
-                "digital_twin_fric_error_ground_std",
-                stats_dict["digital_twin_fric_error_ground_std"],
-            )
-            self.log(
-                "digital_twin_fric_error_both_mean",
-                stats_dict["digital_twin_fric_error_both_mean"],
-            )
-            self.log(
-                "digital_twin_fric_error_both_std",
-                stats_dict["digital_twin_fric_error_both_std"],
-            )
-            # self.log('over_conf_mean',stats_dict['over_conf_mean'])
-            # self.log('over_conf_std',stats_dict['over_conf_std'])
-            # self.log('under_conf_mean',stats_dict['under_conf_mean'])
-            # self.log('under_conf_std',stats_dict['under_conf_std'])
+
         if self.params.offline.plot_hist or self.step == 19:
             res_dict = compute_phy_mask(
                 self.test_img,
@@ -201,8 +112,6 @@ class DecoderLightning(pl.LightningModule):
             )
             conf_mask = res_dict["conf_mask"]
             loss_reco = res_dict["loss_reco"]
-            loss_reco_raw = res_dict["loss_reco_raw"]
-            conf_mask_raw = res_dict["conf_mask_raw"]
 
             colored_loss_mask = calculate_uncertainty_plot(
                 loss_reco,
@@ -263,8 +172,6 @@ class DecoderLightning(pl.LightningModule):
             )
             conf_mask = res_dict["conf_mask"]
             loss_reco = res_dict["loss_reco"]
-            loss_reco_raw = res_dict["loss_reco_raw"]
-            conf_mask_raw = res_dict["conf_mask_raw"]
 
             colored_loss_mask = calculate_uncertainty_plot(
                 loss_reco,
@@ -294,18 +201,6 @@ class DecoderLightning(pl.LightningModule):
                 ),
                 overlay_img,
             )
-            plot_tsne(
-                conf_mask_raw,
-                loss_reco_raw,
-                title=f"step_{self.step}_t-SNE with Confidence Highlighting",
-                path=os.path.join(
-                    WVN_ROOT_DIR,
-                    self.params.offline.ckpt_parent_folder,
-                    self.time,
-                    "tsne",
-                ),
-            )
-            pass
         self.log("val_loss", loss)
         self.log("reco_loss", loss_dict["loss_reco"])
         self.log("phy_loss", loss_dict["loss_pred"])
@@ -360,176 +255,49 @@ def train_and_evaluate(param: ParamCollection):
             tags=["offline", param.offline.env, param.general.name],
         )
 
-        max_epochs = 5  # 8 ,3 for 2nd , 5 for 1st
-        if "partial" in param.offline.traindata_option:
-            if "each" in param.offline.traindata_option:
-                # load train and val data from online collected dataset (each batch is 100 samples from six nodes)
-                train_data = load_data(
-                    os.path.join(
-                        param.offline.data_folder,
-                        "train",
-                        param.offline.env,
-                        param.offline.train_datafile,
-                    )
-                )
+        max_epochs = 5  # 8 ,3 for 2nd , 5 for 1st, TODO, move into config file
 
-                try:
-                    val_data = load_data(
-                        os.path.join(
-                            param.offline.data_folder,
-                            "val",
-                            param.offline.env,
-                            param.offline.train_datafile,
-                        )
-                    )
-                except FileNotFoundError:
-                    val_data = load_data(
-                        os.path.join(
-                            param.offline.data_folder,
-                            "train",
-                            param.offline.env,
-                            param.offline.train_datafile,
-                        )
-                    )
-            elif "all" in param.offline.traindata_option:
-                train_data_hiking = load_data(
-                    os.path.join(
-                        param.offline.data_folder,
-                        "train",
-                        "hiking",
-                        param.offline.train_datafile,
-                    )
-                )
-                train_data_snow = load_data(
-                    os.path.join(
-                        param.offline.data_folder,
-                        "train",
-                        "snow",
-                        param.offline.train_datafile,
-                    )
-                )
-                val_data = load_data(
-                    os.path.join(
-                        param.offline.data_folder,
-                        "val",
-                        param.offline.env,
-                        param.offline.train_datafile,
-                    )
-                )
-                train_data = train_data_hiking + train_data_snow
-
-            else:
-                raise ValueError("Invalid traindata_option")
-            if param.offline.random_datasample[0]:
-                print(
-                    "Randomly sample {} data from the dataset".format(
-                        param.offline.random_datasample[1]
-                    )
-                )
-                train_dataset = BigDataset(
-                    train_data, param.offline.random_datasample[1]
-                )
-            else:
-                train_dataset = BigDataset(train_data)
-
-            if param.offline.random_datasample[0]:
-                print(
-                    "Randomly sample {} data from the dataset".format(
-                        param.offline.random_datasample[1]
-                    )
-                )
-                val_dataset = BigDataset(val_data, param.offline.random_datasample[1])
-            else:
-                val_dataset = BigDataset(val_data)
-
-            # mimic online training fashion
-            batch_size = 1
-            shuffle = True
-        elif "full" in param.offline.traindata_option:
-            if "each" in param.offline.traindata_option:
-                # load train and val data from nodes_datafile (should include all pixels of supervision masks)
-                train_data_raw = load_data(
-                    os.path.join(
-                        param.offline.data_folder,
-                        "train",
-                        param.offline.env,
-                        param.offline.nodes_datafile,
-                    )
-                )
-                if param.offline.env == "vowhite_2nd":
-                    additional_data = load_data(
-                        os.path.join(
-                            param.offline.data_folder,
-                            "train",
-                            "vowhite_1st",
-                            param.offline.nodes_datafile,
-                        )
-                    )
-                    train_data_raw += additional_data
-                try:
-                    val_data_raw = load_data(
-                        os.path.join(
-                            param.offline.data_folder,
-                            "val",
-                            param.offline.env,
-                            param.offline.nodes_datafile,
-                        )
-                    )
-                except FileNotFoundError:
-                    val_data_raw = load_data(
-                        os.path.join(
-                            param.offline.data_folder,
-                            "train",
-                            param.offline.env,
-                            param.offline.nodes_datafile,
-                        )
-                    )
-            elif "all" in param.offline.traindata_option:
-                train_data_hiking = load_data(
-                    os.path.join(
-                        param.offline.data_folder,
-                        "train",
-                        "hiking",
-                        param.offline.nodes_datafile,
-                    )
-                )
-                train_data_snow = load_data(
-                    os.path.join(
-                        param.offline.data_folder,
-                        "train",
-                        "snow",
-                        param.offline.nodes_datafile,
-                    )
-                )
-                val_data_raw = load_data(
-                    os.path.join(
-                        param.offline.data_folder,
-                        "val",
-                        param.offline.env,
-                        param.offline.nodes_datafile,
-                    )
-                )
-                train_data_raw = train_data_hiking + train_data_snow
-            else:
-                raise ValueError("Invalid traindata_option")
-            train_data = create_dataset_from_nodes(
-                param,
-                train_data_raw,
-                model.feat_extractor,
-                fake_phy=param.offline.fake_phy,
+        # load train and val data from nodes_datafile (should include all pixels of supervision masks)
+        train_data_raw = load_data(
+            os.path.join(
+                param.offline.data_folder,
+                "train",
+                param.offline.env,
+                param.offline.nodes_datafile,
             )
-            train_dataset = EntireDataset(train_data)
-            val_data = create_dataset_from_nodes(
-                param,
-                val_data_raw,
-                model.feat_extractor,
-                fake_phy=param.offline.fake_phy,
+        )
+        try:
+            val_data_raw = load_data(
+                os.path.join(
+                    param.offline.data_folder,
+                    "val",
+                    param.offline.env,
+                    param.offline.nodes_datafile,
+                )
             )
-            val_dataset = EntireDataset(val_data)
-            batch_size = 100
-            shuffle = True
-        else:
-            raise ValueError("Invalid traindata_option")
+        except FileNotFoundError:
+            val_data_raw = load_data(
+                os.path.join(
+                    param.offline.data_folder,
+                    "train",
+                    param.offline.env,
+                    param.offline.nodes_datafile,
+                )
+            )
+        train_data = create_dataset_from_nodes(
+            param,
+            train_data_raw,
+            model.feat_extractor,
+        )
+        train_dataset = EntireDataset(train_data)
+        val_data = create_dataset_from_nodes(
+            param,
+            val_data_raw,
+            model.feat_extractor,
+        )
+        val_dataset = EntireDataset(val_data)
+        batch_size = 100
+        shuffle = True
 
         train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle)
         val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
@@ -540,8 +308,6 @@ def train_and_evaluate(param: ParamCollection):
         feat_dim = sample_input.shape[-1]
         label_dim = sample_output.shape[-1]
 
-        # timer callback
-        avg_time_callback = AverageTrainingTimeCallback()
         trainer = Trainer(
             accelerator="gpu",
             devices=[0],
@@ -551,7 +317,6 @@ def train_and_evaluate(param: ParamCollection):
             log_every_n_steps=1,
             limit_train_batches=0.5,
             limit_val_batches=0.5,
-            callbacks=[avg_time_callback],
         )
         trainer.fit(model, train_loader, val_loader)
         torch.save(
@@ -790,11 +555,7 @@ class Validator:
             self.param, self.nodes, feat_extractor, model, self.gt_masks
         )
         return_dict = {}
-        if "vowhite" in self.param.offline.env:
-            digital_twin_error_dict = phy_mask_total_accuracy(
-                self.param, self.nodes, feat_extractor, model
-            )
-            return_dict.update(digital_twin_error_dict)
+
         conf_masks = output_dict["all_conf_masks"]
         ori_imgs = output_dict["ori_imgs"]
         fric_mean, fric_std = output_dict["loss_fric_mean+std"]
@@ -803,11 +564,6 @@ class Validator:
         ori_imgs = ori_imgs.to(self.param.run.device)
         print("conf_masks shape:{}".format(conf_masks.shape))
 
-        # stats_outputdict=masks_stats(self.gt_masks,conf_masks,os.path.join(self.ckpt_parent_folder,model.time,"masks_stats.txt"),self.param.general.name)
-        # over_conf_mean=stats_outputdict['over_conf_mean']
-        # over_conf_std=stats_outputdict['over_conf_std']
-        # under_conf_mean=stats_outputdict['under_conf_mean']
-        # under_conf_std=stats_outputdict['under_conf_std']
         stats_outputdict = masks_iou_stats(
             self.gt_masks,
             conf_masks,
