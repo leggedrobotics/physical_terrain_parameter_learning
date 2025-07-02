@@ -314,8 +314,6 @@ def create_dataset_from_nodes(
                 node.supervision_mask[:, :end_idx, :][non_nan_mask_bottom_third] = 0.4
 
         if param.feat.feature_type != node.feature_type or param.offline.augment:
-            B, C, H, W = img.shape
-            feat_extractor.set_original_size(W, H)
             if param.offline.augment:
                 img = transform_pipeline(img)
             trans_img, compressed_feats = feat_extractor.extract(img)
@@ -363,8 +361,6 @@ def conf_mask_generate(
         )
         reproj_masks.append(reproj_mask)
         ori_imgs.append(img)
-        B, C, H, W = img.shape
-        feat_extractor.set_original_size(W, H)
         res_dict = compute_phy_mask(
             img,
             feat_extractor,
@@ -513,8 +509,6 @@ def phy_mask_total_accuracy(
         )
         reproj_masks.append(reproj_mask)
         ori_imgs.append(img)
-        B, C, H, W = img.shape
-        feat_extractor.set_original_size(W, H)
         res_dict = compute_phy_mask(
             img,
             feat_extractor,

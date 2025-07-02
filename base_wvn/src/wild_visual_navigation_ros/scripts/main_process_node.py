@@ -60,13 +60,7 @@ class MainProcess(RosNode):
         self.today = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
         # Init feature extractor
-        self.feat_extractor = FeatureExtractor(
-            device=self.device,
-            feature_type=self.feature_type,
-            input_size=self.input_size,
-            interp=self.interp,
-            center_crop=self.center_crop,
-        )
+        self.feat_extractor = FeatureExtractor(self.param)
 
         # Init graph manager
         self.manager = Manager(
@@ -203,9 +197,7 @@ class MainProcess(RosNode):
         self.camera_handler["W"] = W
         self.camera_handler["distortion_model"] = camera_info_msg.distortion_model
 
-        # update size info in the feature extractor
-        self.feat_extractor.set_original_size(original_height=H, original_width=W)
-        ratio_x, ratio_y = self.feat_extractor.resize_ratio
+        ratio_x, ratio_y = self.feat_extractor.scaling_ratio
         offset_x, offset_y = self.feat_extractor.crop_offset
         # scale the intrinsic matrix
         K_scaled = rc.scale_intrinsic(K, ratio_x, ratio_y, offset_x, offset_y)
@@ -618,8 +610,6 @@ class MainProcess(RosNode):
         if not hasattr(node, "image") or node.image is None:
             return
         img = node.image.to(self.device)
-        B, C, H, W = img.shape
-        self.feat_extractor.set_original_size(W, H)
         # the image feats in node is on cpu
         trans_img = node.image.to(self.device)
         if isinstance(node.features, dict):

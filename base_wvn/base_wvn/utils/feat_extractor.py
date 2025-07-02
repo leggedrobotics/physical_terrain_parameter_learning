@@ -12,7 +12,7 @@ from .visualizer import (
     plot_overlay_image,
     plot_image,
 )
-from ..config import save_to_yaml
+from ..config import save_to_yaml, ParamCollection
 import PIL.Image
 from .loss import PhyLoss
 import numpy as np
@@ -26,34 +26,14 @@ from scipy.optimize import fsolve
 
 
 class FeatureExtractor:
-    def __init__(
-        self,
-        device: str,
-        feature_type: str = "dinov2",
-        input_size: int = 448,
-        **kwargs,
-    ):
-        """Feature extraction from image
+    def __init__(self, params: ParamCollection):
+        """Feature extraction from image"""
+        self._device = params.run.device
+        self._feature_type = params.feat.feature_type
+        self._input_size = params.feat.input_size
+        self._input_interp = params.feat.interp
+        self.center_crop = params.feat.center_crop
 
-        Args:
-            device (str): Compute device
-
-        """
-        self._device = device
-        self._feature_type = feature_type
-        self._input_size = input_size
-
-        # Extract original_width and original_height from kwargs if present
-        self.original_width = kwargs.get(
-            "original_width", 1920
-        )  # Default to 1920 if not provided
-        self.original_height = kwargs.get(
-            "original_height", 1280
-        )  # Default to 1080 if not provided
-        self._input_interp = kwargs.get("interp", "bilinear")
-        self.center_crop = kwargs.get("center_crop", (False, 910, 910))
-        self.new_height = None
-        self.new_width = None
         # extract crop info
         self.crop_size = self.center_crop[1:]
         self.center_crop = self.center_crop[0]
@@ -63,6 +43,21 @@ class FeatureExtractor:
         else:
             self.target_height = self._input_size
 
+        # feature extractor
+        if self._feature_type == "dinov2":
+            self.patch_size = 14
+            self.extractor = Dinov2Interface(self._device)
+        else:
+            raise ValueError(f"Extractor[{self._feature_type}] not supported!")
+
+        assert (
+            self._input_size % self.patch_size == 0
+        ), "Input size must be a multiple of patch_size"
+        assert (
+            self.crop_size[0] % self.patch_size == 0
+            and self.crop_size[1] % self.patch_size == 0
+        ), "Crop size must be a multiple of patch_size"
+
         # Interpolation type
         if self._input_interp == "bilinear":
             self.interp = T.InterpolationMode.BILINEAR
@@ -71,20 +66,10 @@ class FeatureExtractor:
         elif self._input_interp == "bicubic":
             self.interp = T.InterpolationMode.BICUBIC
 
-        # feature extractor
-        if self._feature_type == "dinov2":
-            self.patch_size = 14
-            self.extractor = Dinov2Interface(device, **kwargs)
-        else:
-            raise ValueError(f"Extractor[{self._feature_type}] not supported!")
-
-        assert (
-            self._input_size % self.patch_size == 0
-        ), "Input size must be a multiple of patch_size"
-
-        # create transform
-        self.transform = self._create_transform()
-        self.init_transform = False
+        # to be initialized later during first call of extract
+        self.original_height, self.original_width = None, None
+        self.new_height, self.new_width = None, None
+        self.transform = None
 
     def extract(
         self, img: torch.Tensor
@@ -98,7 +83,9 @@ class FeatureExtractor:
             transformed_img (torch.tensor, shape:(B,C,H,W)): Transformed image
             compressed_feats (Dict): DINOv2 outputs feat in patches {(scale_h,scale_w):feat-->(B,C,H,W))}
         """
-        if img.shape[-2] != self.target_height:
+        B, C, H, W = img.shape
+        if H != self.target_height:  # we scale based on the height
+            self.init_transform(original_height=H, original_width=W)
             transformed_img = self.transform(img)
         else:
             transformed_img = img
@@ -107,59 +94,48 @@ class FeatureExtractor:
         torch.cuda.empty_cache()
         return transformed_img, compressed_feats
 
-    def set_original_size(self, original_width: int, original_height: int):
-        if self.init_transform is False and original_height != self.target_height:
-            self.original_height = original_height
-            self.original_width = original_width
+    def init_transform(self, original_width: int, original_height: int) -> None:
+        if self.transform is not None:
+            return
+        self.original_height = original_height
+        self.original_width = original_width
 
-            # somtimes the input image is already processed but we still want a smaller one for a new feat_extractor
-            # so we need to recompute the transform and not scaling the processed image back to large
-            if self.original_height < self._input_size:
-                print(
-                    "The input image is in height of {}, smaller than the planned (scale to) input H size {}, changed to the image size!".format(
-                        self.original_height, self._input_size
-                    )
-                )
-                self._input_size = self.original_height
+        if self.original_height < self._input_size:
+            raise ValueError(
+                f"Original image height {self.original_height} is smaller than desired input size {self._input_size}!"
+            )
 
-            self.transform = self._create_transform()
-            self.init_transform = True
-        return self.original_width, self.original_height
+        self._create_transform()
 
     @property
-    def feature_type(self):
+    def feature_type(self) -> str:
         return self._feature_type
 
     @property
-    def resize_ratio(self):
-        return self.resize_ratio_x, self.resize_ratio_y
+    def scaling_ratio(self) -> Tuple[float, float]:
+        return self.scaling_ratio_x, self.scaling_ratio_y
 
     @property
-    def crop_offset(self):
+    def crop_offset(self) -> Tuple[float, float]:
         return self.crop_offset_x, self.crop_offset_y
 
     @property
-    def new_size(self):
+    def new_size(self) -> Tuple[int, int]:
         return self.new_width, self.new_height
 
-    def _create_transform(self):
+    def _create_transform(self) -> None:
         # Calculate aspect ratio preserving size
         aspect_ratio = self.original_width / self.original_height
-        if aspect_ratio >= 1:  # If width > height, scale by height (1280 -> 448)
-            new_height = self._input_size
-            new_width = int(new_height * aspect_ratio)
-            # check if new_width is a multiple of self.patch_size
-            if new_width % self.patch_size != 0:
-                new_width = new_width - new_width % self.patch_size
-        else:  # If height >= width, scale by width (1920 -> 448)
-            new_width = self._input_size
-            new_height = int(new_width / aspect_ratio)
-            # check if new_height is a multiple of self.patch_size
-            if new_height % self.patch_size != 0:
-                new_height = new_height - new_height % self.patch_size
+
+        # we scale based on the height
+        new_height = self._input_size
+        new_width = int(new_height * aspect_ratio)
+        # check if new_width is a multiple of self.patch_size
+        if new_width % self.patch_size != 0:
+            new_width = new_width - new_width % self.patch_size
 
         # Resize and then center crop to the expected input size
-        transform = T.Compose(
+        self.transform = T.Compose(
             [
                 T.Resize((new_height, new_width), self.interp, antialias=None),
                 T.CenterCrop(self.crop_size)
@@ -170,8 +146,8 @@ class FeatureExtractor:
         )
 
         # actual resize ratio along x and y of resize step
-        self.resize_ratio_x = float(new_width) / float(self.original_width)
-        self.resize_ratio_y = float(new_height) / float(self.original_height)
+        self.scaling_ratio_x = float(new_width) / float(self.original_width)
+        self.scaling_ratio_y = float(new_height) / float(self.original_height)
         if not self.center_crop:
             self.new_height = new_height
             self.new_width = new_width
@@ -183,9 +159,7 @@ class FeatureExtractor:
             self.crop_offset_x = (new_width - self.crop_size[1]) / 2
             self.crop_offset_y = (new_height - self.crop_size[0]) / 2
 
-        return transform
-
-    def change_device(self, device):
+    def change_device(self, device: str) -> None:
         """Changes the device of all the class members
 
         Args:
@@ -516,30 +490,24 @@ def test_extractor():
     import cv2
     import os
     import time
+    from base_wvn import ParamCollection
 
+    param = ParamCollection()
     image_relative_path = (
-        "image/sample.png"  # Update to the relative path of your image
+        "image/forest_clean.png"  # Update to the relative path of your image
     )
-    feat_relative_path = "image/sample_feat.png"
+    feat_relative_path = "image/forest_clean_feat.png"
     # Use os.path.join to get the full path of the image
     image_path = os.path.join(WVN_ROOT_DIR, image_relative_path)
-    device = "cuda" if torch.cuda.is_available() else "cpu"
     np_img = cv2.imread(image_path)
-    img = torch.from_numpy(cv2.cvtColor(np_img, cv2.COLOR_BGR2RGB)).to(device)
+    img = torch.from_numpy(cv2.cvtColor(np_img, cv2.COLOR_BGR2RGB)).to(param.run.device)
     img = img.permute(2, 0, 1)
     img = (img.type(torch.float32) / 255)[None]
-    input_size = 1260
-    extractor = FeatureExtractor(
-        device,
-        input_size=input_size,
-        original_width=img.shape[-1],
-        original_height=img.shape[-2],
-        interp="bilinear",
-    )
+    extractor = FeatureExtractor(param)
     start_time = time.time()
 
-    features, seg, trans_img, _ = extractor.extract(img)
-
+    trans_img, compressed_feat = extractor.extract(img)
+    features = next(iter(compressed_feat.values()))
     # Stop the timer
     end_time = time.time()
     # Calculate the elapsed time
@@ -553,12 +521,10 @@ def test_extractor():
     import numpy as np
     from sklearn.decomposition import PCA
 
-    B, N, C = features.shape
+    B, C, H, W = features.shape
+    features = features.permute(0, 2, 3, 1)
+    features = features.reshape(B, H * W, C)
     features = features[0].cpu().numpy()
-    # B,C,H,W=features.shape
-    # features=features.permute(0,2,3,1)
-    # features=features.reshape(B,H*W,C)
-    # features=features[0].cpu().numpy()
     n = 3
     pca = PCA(n_components=n)
     pca.fit(features)
@@ -570,42 +536,10 @@ def test_extractor():
         )
     # pca_features = (pca_features - pca_features.min()) / (pca_features.max() - pca_features.min())
     pca_features = pca_features * 255
-    feat_height = seg.shape[0]
-    feat_width = seg.shape[1]
-    plt.imshow(pca_features.reshape(feat_height, feat_width, n).astype(np.uint8))
+    plt.imshow(pca_features.reshape(H, W, n).astype(np.uint8))
     image_path = os.path.join(WVN_ROOT_DIR, feat_relative_path)
     plt.savefig(image_path)
 
 
 if __name__ == "__main__":
-    import torch
-    import torch.nn.functional as F
-
-    # Original segmentation map
-    seg = torch.tensor([[0, 0, 1, 1], [0, 0, 1, 1], [2, 2, 3, 3], [2, 2, 3, 3]])
-    print(seg.reshape(-1))
-    # Scale factors
-    scales_h = [2, 0.5]
-    scales_w = [2, 0.5]
-
-    # Resized segmentation maps
-    segs = [
-        F.interpolate(
-            seg[None, None, :, :].type(torch.float32),
-            scale_factor=(scale_h, scale_w),
-            mode="nearest",
-        )[0, 0].type(torch.long)
-        for scale_h, scale_w in zip(scales_h, scales_w)
-    ]
-
-    # Print the resized maps
-    for i, resized_seg in enumerate(segs):
-        print(f"Resized seg at scale {scales_h[i]}x{[scales_w[i]]}:")
-        print(resized_seg.numpy(), "\n")
-
-    dense_features = {
-        "feat_1": torch.ones((1, 4, 4)).unsqueeze(0),
-        "feat_2": torch.ones((2, 2, 2)).unsqueeze(0) * 2,
-    }
-    sparse_features = concat_feat_dict(dense_features)
     test_extractor()

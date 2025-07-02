@@ -122,15 +122,7 @@ class DecoderLightning(pl.LightningModule):
                 )
             )
         B, C, H, W = self.test_img.shape
-        self.feat_extractor = FeatureExtractor(
-            device=self.params.run.device,
-            input_size=self.params.feat.input_size,
-            feature_type=self.params.feat.feature_type,
-            interp=self.params.feat.interp,
-            center_crop=self.params.feat.center_crop,
-            original_width=W,
-            original_height=H,
-        )
+        self.feat_extractor = FeatureExtractor(self.params)
         self.loss_fn = PhyLoss(
             w_pred=loss_params.w_pred,
             w_reco=loss_params.w_reco,
@@ -598,13 +590,7 @@ def train_and_evaluate(param: ParamCollection):
         )
         model.val_loss = checkpoint["loss"]
         model.model.eval()
-        feat_extractor = FeatureExtractor(
-            device=param.run.device,
-            input_size=param.feat.input_size,
-            feature_type=param.feat.feature_type,
-            interp=param.feat.interp,
-            center_crop=param.feat.center_crop,
-        )
+        feat_extractor = FeatureExtractor(param)
         """ 
         plot phy_masks (two channels) on a set of test images
         """
@@ -613,8 +599,6 @@ def train_and_evaluate(param: ParamCollection):
                 os.path.join(param.offline.data_folder, "val", param.offline.env)
             )
             for name, img in test_imgs.items():
-                B, C, H, W = img.shape
-                feat_extractor.set_original_size(W, H)
                 compute_phy_mask(
                     img,
                     feat_extractor,
@@ -674,8 +658,6 @@ def train_and_evaluate(param: ParamCollection):
                     img_torch = rc.ros_image_to_torch(msg, device=param.run.device)
                     img = img_torch[None]
 
-                    B, C, H, W = img.shape
-                    feat_extractor.set_original_size(W, H)
                     out_dict = compute_phy_mask(
                         img,
                         feat_extractor,
