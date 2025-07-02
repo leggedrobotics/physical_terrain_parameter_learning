@@ -191,7 +191,9 @@ class MainProcess(RosNode):
 
         print("Start waiting for Camera topic being published!")
         # Camera info
-        camera_info_msg = rospy.wait_for_message(self.camera_info_topic, CameraInfo)
+        camera_info_msg: CameraInfo = rospy.wait_for_message(
+            self.camera_info_topic, CameraInfo
+        )
         new_camera_info_msg = deepcopy(camera_info_msg)
         K, H, W = rc.ros_cam_info_to_tensors(camera_info_msg, device=self.device)
 
@@ -275,7 +277,6 @@ class MainProcess(RosNode):
         stiff_pub = rospy.Publisher(
             "/vd_pipeline/stiffness", CompressedImage, queue_size=10
         )
-        conf_pub = rospy.Publisher("/vd_pipeline/confidence", Image, queue_size=10)
         info_pub = rospy.Publisher(
             "/vd_pipeline/camera_info", CameraInfo, queue_size=10
         )
@@ -298,7 +299,6 @@ class MainProcess(RosNode):
         self.camera_handler["input_pub"] = input_pub
         self.camera_handler["fric_pub"] = fric_pub
         self.camera_handler["stiff_pub"] = stiff_pub
-        self.camera_handler["conf_pub"] = conf_pub
         self.camera_handler["info_pub"] = info_pub
         self.camera_handler["channel_pub"] = channel_pub
         self.camera_handler["freq_pub"] = freq_pub

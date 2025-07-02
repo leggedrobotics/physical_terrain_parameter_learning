@@ -28,7 +28,10 @@ If this code supports your research, please consider citing the following work. 
 
 ```
 
-## Stand-alone Pre-trained Physical Decoder (Folder: [physical_decoder](physical_decoder/))
+## Codebase Overview
+![Codebase Overview](.docs/codebase.png)
+
+## 1. Stand-alone Pre-trained Physical Decoder (Folder: [physical_decoder](physical_decoder/))
 You can try out our pre-trained physical decoder as follows:
 
 
@@ -76,7 +79,7 @@ while True:
 
 ```
 
-## Physical Decoder Training (Folder: [physical_decoder_training](physical_decoder_training/))
+## 2. Physical Decoder Training (Folder: [physical_decoder_training](physical_decoder_training/))
 
 ### Installation
 ```bash
@@ -115,6 +118,6 @@ You may use our pre-collected dataset for training. Download the `dataset` folde
 ```bash
 python physical_decoder_training/train_eval.py
 ```
-## Self-supervised Visual Decoder Learning (Folder: base_wvn)
+## 3. Self-supervised Visual Decoder Learning (Folder: [base_wvn](base_wvn/))
 
 Please check the Readme in `base_wvn` folder for detailed instructions.

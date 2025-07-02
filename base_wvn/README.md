@@ -69,7 +69,7 @@ After running offline training for the first time, you will get additional files
 You can put the above files into seperate folders, like `~/base_wvn/results/manager/train/snow`
 
 ### Manual correction of GT masks
-Beacause the automatically generated GT masks (from SAM or SEEM) are not perfect, we need to manually correct them with segments.ai . 
+Beacause the automatically generated GT masks (from SAM) are not perfect, we need to manually correct them with segments.ai . 
 
 You can use the `base_wvn/offline/seg_correction.py` to correct the masks. The detailed usage you can refer to the code.
 ### Running
