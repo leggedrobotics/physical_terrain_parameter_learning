@@ -32,7 +32,7 @@ class Manager:
         model_params = param.model
         self._device = device
         self._label_ext_mode = graph_params.label_ext_mode
-        self._vis_node_index = graph_params.vis_node_index
+        self._vis_node_index_from_last = graph_params.vis_node_index_from_last
         self._min_samples_for_training = graph_params.min_samples_for_training
         self._update_range_main_graph = graph_params.update_range_main_graph
         self._cut_threshold = graph_params.cut_threshold
@@ -59,7 +59,7 @@ class Manager:
             self._main_graph = BaseGraph(edge_distance=self._edge_dist_thr_main_graph)
         else:
             self._main_graph = MaxElementsGraph(
-                edge_distance=self._edge_dist_thr_main_graph, max_elements=80
+                edge_distance=self._edge_dist_thr_main_graph, max_elements=20
             )
 
         # Visualization node
@@ -138,14 +138,14 @@ class Manager:
     def update_visualization_node(self):
         # For the first nodes we choose the visualization node as the last node available
         valid_num = self._main_graph.get_num_valid_nodes()
-        if valid_num <= self._vis_node_index:
+        if valid_num <= self._vis_node_index_from_last:
             # self._vis_main_node = self._main_graph.get_nodes()[0]
             if valid_num == 0:
                 return
             self._vis_main_node = self._main_graph.get_valid_nodes()[0]
         else:
             self._vis_main_node = self._main_graph.get_valid_nodes()[
-                -self._vis_node_index
+                -self._vis_node_index_from_last
             ]
 
         # check the head distance between main and sub graph

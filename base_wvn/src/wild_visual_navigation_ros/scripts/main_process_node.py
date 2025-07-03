@@ -271,16 +271,13 @@ class MainProcess(RosNode):
         # Results publisher
         input_pub = rospy.Publisher("/vd_pipeline/image_input", Image, queue_size=10)
         fric_pub = rospy.Publisher("/vd_pipeline/friction", Image, queue_size=10)
-        stiff_pub = rospy.Publisher(
-            "/vd_pipeline/stiffness", CompressedImage, queue_size=10
-        )
+        stiff_pub = rospy.Publisher("/vd_pipeline/stiffness", Image, queue_size=10)
         info_pub = rospy.Publisher(
             "/vd_pipeline/camera_info", CameraInfo, queue_size=10
         )
         channel_pub = rospy.Publisher(
             "/vd_pipeline/channel_info", ChannelInfo, queue_size=10
         )
-        freq_pub = rospy.Publisher("/test", Float32, queue_size=10)
 
         latest_main_node = rospy.Publisher(
             "/vd_pipeline/latest_main_node", Marker, queue_size=10
@@ -298,7 +295,6 @@ class MainProcess(RosNode):
         self.camera_handler["stiff_pub"] = stiff_pub
         self.camera_handler["info_pub"] = info_pub
         self.camera_handler["channel_pub"] = channel_pub
-        self.camera_handler["freq_pub"] = freq_pub
         self.camera_handler["system_state_pub"] = system_state_pub
         self.camera_handler["latest_main_node"] = latest_main_node
         self.camera_handler["latest_sub_node"] = latest_sub_node
@@ -335,13 +331,6 @@ class MainProcess(RosNode):
         else:
             self.log(log_entry, "processing: rate ok")
             return False
-
-    def debug_pub_camera_callback(self) -> None:
-        # pub for testing frequency
-        freq_pub = self.camera_handler["freq_pub"]
-        msg = Float32()
-        msg.data = 1.0
-        freq_pub.publish(msg)
 
     @accumulate_time
     def camera_callback(
@@ -381,8 +370,6 @@ class MainProcess(RosNode):
             # TODO: delete when pushing to github
             if "debug" in self.mode:
                 # comment out if unneeded
-                # pub for testing frequency
-                self.debug_pub_camera_callback()
                 # send tf , vis in rviz
                 self.broadcast_tf_from_matrix(
                     pose_cam_in_world, self.world_frame, "hdr_rear_camera"
@@ -587,9 +574,9 @@ class MainProcess(RosNode):
             #     linodes=self.manager._main_graph.get_valid_nodes()
             #     if len(linodes)>0:
             #         self.pub_node_prediction(linodes[0])
-            # linodes=self.manager._main_graph.get_valid_nodes()
-            # if len(linodes)>0:
-            #     self.pub_node_prediction(linodes[0],step_time)
+            # linodes = self.manager._main_graph.get_valid_nodes()
+            # if len(linodes) > 0:
+            #     self.pub_node_prediction(linodes[0], step_time)
             # or plot the latest node
             # self.pub_node_prediction(main_node)
             i += 1

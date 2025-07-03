@@ -199,7 +199,7 @@ class ParamCollection(Serializable):
         min_samples_for_training: int = 1
         random_sample_num: int = 100
 
-        vis_node_index: int = 10
+        vis_node_index_from_last: int = 10
         label_ext_mode: bool = False
         extraction_store_folder: str = "LabelExtraction"
 
