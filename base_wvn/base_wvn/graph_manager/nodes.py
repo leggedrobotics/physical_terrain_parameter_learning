@@ -130,9 +130,7 @@ class MainNode(BaseNode):
         image_projector: ImageProjector = None,
         features: Union[torch.tensor, dict] = None,
         feature_type: str = None,
-        segments: torch.Tensor = None,
         camera_name="cam",
-        use_for_training=True,
         phy_dim: int = 2,
     ):
         super().__init__(timestamp=timestamp, pose_base_in_world=pose_base_in_world)
@@ -142,9 +140,7 @@ class MainNode(BaseNode):
         self._image = image
         self._image_projector = image_projector
         self._camera_name = camera_name
-        self._use_for_training = use_for_training
         self._features = features
-        self._feature_segments = segments
         self._feature_type = feature_type
         self._phy_dim = phy_dim
         """ 
@@ -181,10 +177,6 @@ class MainNode(BaseNode):
         return self._features
 
     @property
-    def feature_segments(self):
-        return self._feature_segments
-
-    @property
     def image_projector(self):
         return self._image_projector
 
@@ -203,10 +195,6 @@ class MainNode(BaseNode):
     @property
     def supervision_mask(self):
         return self._supervision_mask
-
-    @property
-    def use_for_training(self):
-        return self._use_for_training
 
     @camera_name.setter
     def camera_name(self, camera_name):
@@ -240,10 +228,6 @@ class MainNode(BaseNode):
     def supervision_mask(self, supervision_mask):
         self._supervision_mask = supervision_mask
 
-    @use_for_training.setter
-    def use_for_training(self, use_for_training):
-        self._use_for_training = use_for_training
-
     def clear_debug_data(self):
         """Removes all data not required for training"""
         try:
@@ -268,8 +252,6 @@ class MainNode(BaseNode):
         self._pose_cam_in_world = self._pose_cam_in_world.to(device)
 
         # TODO: also move features dict to device
-        if self._feature_segments is not None:
-            self._feature_segments = self._feature_segments.to(device)
         if self._prediction is not None:
             self._prediction = self._prediction.to(device)
         if self._confidence is not None:

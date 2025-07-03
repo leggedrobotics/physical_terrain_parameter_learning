@@ -84,7 +84,6 @@ class Manager:
         self._phy_loss = PhyLoss(
             w_pred=loss_params.w_pred,
             w_reco=loss_params.w_reco,
-            method=loss_params.method,
             reco_loss_type=loss_params.reco_loss_type,
         ).to(self._device)
         self._loss = torch.tensor([torch.inf])
@@ -166,7 +165,7 @@ class Manager:
         if self._pause_main_graph:
             return False
         success = self._main_graph.add_node(node)
-        if success and node.use_for_training:
+        if success:
             # Print some info
             total_nodes = self._main_graph.get_num_nodes()
             if logger is None:

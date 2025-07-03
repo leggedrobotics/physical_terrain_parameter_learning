@@ -82,12 +82,12 @@ class MaskGenerator(torch.nn.Module, ABC):
             output,
             feat_input,  # output - shape (H*W, C), feat_input - shape (H*W, C), loss_reco - shape (H*W,)
         )
-        loss_reco = loss_reco.reshape(H, W)
 
         phy_dim = output.shape[1] - feat_input.shape[1]
         output_phy = output[:, -phy_dim:].reshape(H, W, 2).permute(2, 0, 1)  # (2,H,W)
 
         conf_mask = self.get_confidence_mask_from_recon_loss(loss_reco).reshape(H, W)
+        loss_reco = loss_reco.reshape(H, W)
         unconf_mask = ~conf_mask
         mask = unconf_mask.unsqueeze(0).repeat(output_phy.shape[0], 1, 1)  # (2,H,W)
         output_phy_ori = output_phy.clone()

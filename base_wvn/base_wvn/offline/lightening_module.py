@@ -65,7 +65,6 @@ class DecoderLightning(pl.LightningModule):
         self.loss_fn = PhyLoss(
             w_pred=loss_params.w_pred,
             w_reco=loss_params.w_reco,
-            method=loss_params.method,
             reco_loss_type=loss_params.reco_loss_type,
         )
         self.err_computer = MaskedPredErrorComputer(params)

@@ -202,7 +202,6 @@ class ParamCollection(Serializable):
         vis_node_index: int = 10
         label_ext_mode: bool = False
         extraction_store_folder: str = "LabelExtraction"
-        use_for_training: bool = True
 
     graph: GraphParams = GraphParams()
 

@@ -201,6 +201,7 @@ class MainProcess(RosNode):
         self.camera_handler["W"] = W
         self.camera_handler["distortion_model"] = camera_info_msg.distortion_model
 
+        self.feat_extractor.init_transform(original_width=W, original_height=H)
         ratio_x, ratio_y = self.feat_extractor.scaling_ratio
         offset_x, offset_y = self.feat_extractor.crop_offset
         # scale the intrinsic matrix
@@ -390,9 +391,7 @@ class MainProcess(RosNode):
             # prepare image
             img_torch = rc.ros_image_to_torch(img_msg, device=self.device)
             img_torch = img_torch[None]
-            features, seg, transformed_img, compressed_feats = (
-                self.feat_extractor.extract(img_torch)
-            )
+            transformed_img, compressed_feats = self.feat_extractor.extract(img_torch)
 
             image_projector = ImageProjector(
                 K=self.camera_handler["K_scaled"],
@@ -414,10 +413,8 @@ class MainProcess(RosNode):
                 image=transformed_img,
                 features=compressed_feats,
                 feature_type=self.feature_type,
-                segments=seg,
                 image_projector=image_projector,
                 camera_name=cam,
-                use_for_training=self.param.graph.use_for_training,
                 phy_dim=self.param.feat.physical_dim,
             )
 

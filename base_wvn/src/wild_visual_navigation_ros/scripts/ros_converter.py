@@ -21,6 +21,7 @@ CV_BRIDGE = CvBridge()
 TO_TENSOR = transforms.ToTensor()
 TO_PIL_IMAGE = transforms.ToPILImage()
 
+
 @jit(nopython=True)
 def _q_to_se3(q: np.ndarray) -> np.ndarray:
     # Normalize the quaternion
@@ -41,6 +42,7 @@ def _q_to_se3(q: np.ndarray) -> np.ndarray:
     T[:3, :3] = R
 
     return T
+
 
 def pq_to_se3(pq: Tuple[np.ndarray, np.ndarray]) -> Tuple[bool, Optional[np.ndarray]]:
     assert len(pq) == 2
@@ -80,7 +82,9 @@ def np_to_geometry_msgs_PointArray(array: np.ndarray) -> List[Point]:
     return point_list
 
 
-def ros_cam_info_to_tensors(caminfo_msg: CameraInfo, device:str="cpu") -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+def ros_cam_info_to_tensors(
+    caminfo_msg: CameraInfo, device: str = "cpu"
+) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     K = torch.eye(4, dtype=torch.float32).to(device)
     K[:3, :3] = torch.FloatTensor(caminfo_msg.K).reshape(3, 3)
     K = K.unsqueeze(0)
@@ -89,7 +93,11 @@ def ros_cam_info_to_tensors(caminfo_msg: CameraInfo, device:str="cpu") -> Tuple[
     return K, H, W
 
 
-def ros_image_to_torch(ros_img: Union[Image, CompressedImage], desired_encoding:str="rgb8", device:str="cpu") -> torch.Tensor:
+def ros_image_to_torch(
+    ros_img: Union[Image, CompressedImage],
+    desired_encoding: str = "rgb8",
+    device: str = "cpu",
+) -> torch.Tensor:
     if type(ros_img).__name__ == "_sensor_msgs__Image" or isinstance(ros_img, Image):
         np_image = CV_BRIDGE.imgmsg_to_cv2(ros_img, desired_encoding=desired_encoding)
 
@@ -107,7 +115,9 @@ def ros_image_to_torch(ros_img: Union[Image, CompressedImage], desired_encoding:
     return TO_TENSOR(np_image).to(device)
 
 
-def torch_to_ros_image(torch_img: torch.Tensor, desired_encoding:str="rgb8") -> Image:
+def torch_to_ros_image(
+    torch_img: torch.Tensor, desired_encoding: str = "rgb8"
+) -> Image:
     """
 
     Args:
@@ -123,7 +133,7 @@ def torch_to_ros_image(torch_img: torch.Tensor, desired_encoding:str="rgb8") -> 
     return ros_img
 
 
-def numpy_to_ros_image(np_img: np.ndarray, desired_encoding:str="rgb8") -> Image:
+def numpy_to_ros_image(np_img: np.ndarray, desired_encoding: str = "rgb8") -> Image:
     """
 
     Args:
@@ -136,13 +146,13 @@ def numpy_to_ros_image(np_img: np.ndarray, desired_encoding:str="rgb8") -> Image
     ros_image = CV_BRIDGE.cv2_to_imgmsg(np_img, encoding=desired_encoding)
     return ros_image
 
+
 def se3_to_pq(matrix: Union[torch.Tensor, np.ndarray]) -> Tuple[np.ndarray, np.ndarray]:
     matrix = matrix.cpu().numpy() if isinstance(matrix, torch.Tensor) else matrix
-    q= SO3.from_matrix(matrix[:3, :3], normalize=True).to_quaternion(
-        ordering="xyzw"
-    )
+    q = SO3.from_matrix(matrix[:3, :3], normalize=True).to_quaternion(ordering="xyzw")
     p = matrix[:3, 3]
     return p, q
+
 
 def se3_to_pose_msg(matrix: Union[torch.Tensor, np.ndarray]) -> Pose:
     p, q = se3_to_pq(matrix)
@@ -158,16 +168,18 @@ def se3_to_pose_msg(matrix: Union[torch.Tensor, np.ndarray]) -> Pose:
     return pose
 
 
-def pose_msg_to_se3_torch(msg: Pose, device:str="cpu"):
+def pose_msg_to_se3_torch(msg: Pose, device: str = "cpu") -> torch.Tensor:
     se3 = msg_to_se3(msg)
     return torch.tensor(se3, device=device, dtype=torch.float32)
 
 
-def plane_edge_to_torch(edge: PlaneEdge, device="cpu"):
+def plane_edge_to_torch(edge: PlaneEdge, device="cpu") -> torch.Tensor:
     edge = edge.edge_points
     ls = []
     for point in edge:
-        point = torch.FloatTensor([point.x, point.y, point.z]).to(device)
+        point = torch.tensor(
+            [point.x, point.y, point.z], dtype=torch.float32, device=device
+        )
         ls.append(point)
     return torch.stack(ls, dim=0).to(device)
 
@@ -253,7 +265,10 @@ def _odometry_to_pq(msg: Odometry) -> Tuple[np.ndarray, np.ndarray]:
     """
     return _pose_to_pq(msg.pose.pose)
 
-def msg_to_pq(msg: Union[Pose, PoseStamped, Transform, TransformStamped, Odometry]) -> Tuple[np.ndarray, np.ndarray]:
+
+def msg_to_pq(
+    msg: Union[Pose, PoseStamped, Transform, TransformStamped, Odometry],
+) -> Tuple[np.ndarray, np.ndarray]:
     """Conversion from geometric ROS messages into position and quaternion
 
     @param msg: Message to transform. Acceptable types - C{geometry_msgs/Pose}, C{geometry_msgs/PoseStamped},
@@ -284,7 +299,10 @@ def msg_to_pq(msg: Union[Pose, PoseStamped, Transform, TransformStamped, Odometr
         q = q / norm
     return p, q
 
-def msg_to_se3(msg: Union[Pose, PoseStamped, Transform, TransformStamped, Odometry]) -> np.ndarray:
+
+def msg_to_se3(
+    msg: Union[Pose, PoseStamped, Transform, TransformStamped, Odometry],
+) -> np.ndarray:
     """Conversion from geometric ROS messages into SE(3)
 
     @param msg: Message to transform. Acceptable types - C{geometry_msgs/Pose}, C{geometry_msgs/PoseStamped},
