@@ -25,6 +25,7 @@ from base_wvn.utils import (
 )
 from base_wvn.config.wvn_cfg import ParamCollection
 import pytorch_lightning as pl
+from typing import Dict
 
 
 class DecoderLightning(pl.LightningModule):
@@ -215,7 +216,7 @@ class MaskedPredErrorComputer:
         self.gt_masks = gt_masks
         print("gt_masks shape:{}".format(gt_masks.shape))
 
-    def compte_and_log(self, model: pl.LightningModule) -> None:
+    def compte_and_log(self, model: DecoderLightning, log: bool) -> Dict[str, float]:
         output_dict = nodes_mask_generation_and_phy_pred_error_computation(
             self.param, self.nodes, model, self.gt_masks
         )
@@ -246,9 +247,20 @@ class MaskedPredErrorComputer:
                 layout_type="grid",
                 param=self.param,
             )
-        model.log("fric_error_mean", fric_mean)
-        model.log("fric_error_std", fric_std)
-        model.log("stiff_error_mean", stiffness_mean)
-        model.log("stiff_error_std", stiffness_std)
-        model.log("iou_mean", stats_outputdict["iou_mean"])
-        model.log("iou_std", stats_outputdict["iou_std"])
+
+        if log:
+            model.log("fric_error_mean", fric_mean)
+            model.log("fric_error_std", fric_std)
+            model.log("stiff_error_mean", stiffness_mean)
+            model.log("stiff_error_std", stiffness_std)
+            model.log("iou_mean", stats_outputdict["iou_mean"])
+            model.log("iou_std", stats_outputdict["iou_std"])
+
+        return {
+            "fric_error_mean": fric_mean,
+            "fric_error_std": fric_std,
+            "stiff_error_mean": stiffness_mean,
+            "stiff_error_std": stiffness_std,
+            "iou_mean": stats_outputdict["iou_mean"],
+            "iou_std": stats_outputdict["iou_std"],
+        }

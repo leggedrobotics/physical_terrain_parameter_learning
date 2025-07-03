@@ -269,8 +269,6 @@ class ParamCollection(Serializable):
         plot_nodes: bool = False
         plot_masks_compare: bool = False
 
-        augment: bool = True
-
         analyze_path: str = "results/analyze"
 
     offline: OfflineParams = OfflineParams()

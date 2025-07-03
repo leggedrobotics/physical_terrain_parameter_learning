@@ -29,28 +29,10 @@ from typing import List, Dict, Tuple, Optional
 import pytorch_lightning as pl
 from segment_anything import SamPredictor, sam_model_registry
 
-from torchvision import transforms
 import seaborn as sns
 
 plt.rcParams["font.family"] = "Arial"
 plt.rcParams["font.size"] = 7
-# Define the transformations
-transform_pipeline = transforms.Compose(
-    [
-        transforms.RandomApply(
-            [
-                transforms.ColorJitter(
-                    brightness=0.5, contrast=0.5, saturation=0.5, hue=0.5
-                )
-            ],
-            p=0.5,
-        ),
-        transforms.RandomApply(
-            [transforms.GaussianBlur(kernel_size=(5, 5), sigma=(0.1, 2))], p=0.5
-        ),
-        # Add any other tensor transformations here if needed
-    ]
-)
 
 
 def load_data(file: str) -> torch.Tensor:
@@ -281,14 +263,12 @@ def create_dataset_from_nodes(
     param: ParamCollection,
     nodes: List[MainNode],
     feat_extractor: FeatureExtractor,
-):
+) -> VD_dataset:
     # use new_features if we want to test new feat_extractor
     # output dataset
     for node in nodes:
         img = node.image.to(param.run.device)
-        if param.feat.feature_type != node.feature_type or param.offline.augment:
-            if param.offline.augment:
-                img = transform_pipeline(img)
+        if param.feat.feature_type != node.feature_type:
             trans_img, compressed_feats = feat_extractor.extract(img)
             feat_input, H, W = concat_feat_dict(compressed_feats)
             feat_input = feat_input.reshape(1, H, W, -1)
@@ -303,7 +283,7 @@ def create_dataset_from_nodes(
 def compute_pred_phy_loss(
     ori_phy_mask: torch.Tensor,
     pred_phy_mask: torch.Tensor,
-):
+) -> Dict[str, torch.Tensor]:
     """
     To calculate the mean error of predicted physical params value in confident area of a image
     phy_mask (2,H,W) H,W is the size of resized img
@@ -465,9 +445,9 @@ def calculate_and_save_uncertainty_histogram(
     all_losses: torch.Tensor,
     all_conf_masks: torch.Tensor,
     all_reproj_masks: torch.Tensor = None,
-    save_path=None,
-    colormap="coolwarm",
-):
+    save_path: str = None,
+    colormap: str = "coolwarm",
+) -> np.ndarray:
     """
     Calculate a histogram of the uncertainty values (losses) from reproj_masks(should be very certain)
     and from conf_masks
@@ -595,12 +575,12 @@ def calculate_and_save_uncertainty_histogram(
 
 def create_colored_lossimg(
     loss_reco_resized: torch.Tensor,
-    bins,
-    conf_bin_num,
-    unconf_bin_num,
-    conf_color,
-    unconf_color,
-):
+    bins: np.ndarray,
+    conf_bin_num: int,
+    unconf_bin_num: int,
+    conf_color: np.ndarray,
+    unconf_color: np.ndarray,
+) -> np.ndarray:
     H, W = loss_reco_resized.shape[-2:]
     # Convert bin edges to bin centers for accurate mapping
     bin_centers = bins[1:]
@@ -769,7 +749,9 @@ def show_mask(mask: torch.Tensor, ax: Axes, random_color: bool = False) -> None:
     ax.imshow(mask_image)
 
 
-def show_points(coords, labels, ax, marker_size=375):
+def show_points(
+    coords: torch.Tensor, labels: torch.Tensor, ax: Axes, marker_size: int = 375
+) -> None:
     if isinstance(coords, torch.Tensor):
         coords = coords.cpu().numpy()
     if isinstance(labels, torch.Tensor):
@@ -796,7 +778,7 @@ def show_points(coords, labels, ax, marker_size=375):
     )
 
 
-def calculate_mask_values(mask):
+def calculate_mask_values(mask: torch.Tensor) -> Tuple[float, float]:
     if mask is None:
         return 0, 0  # Or handle this case as you see fit
     if isinstance(mask, torch.Tensor):
