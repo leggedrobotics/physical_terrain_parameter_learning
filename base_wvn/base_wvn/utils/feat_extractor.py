@@ -178,44 +178,6 @@ class FeatureExtractor:
         return feat_dict
 
 
-def compute_pred_phy_loss(
-    ori_phy_mask: torch.Tensor,
-    pred_phy_mask: torch.Tensor,
-):
-    """
-    To calculate the mean error of predicted physical params value in confident area of a image
-    phy_mask (2,H,W) H,W is the size of resized img
-    """
-    # check dim of phy_masks first
-    if (
-        ori_phy_mask.shape[-2] != pred_phy_mask.shape[-2]
-        or ori_phy_mask.shape[-1] != pred_phy_mask.shape[-1]
-    ):
-        raise ValueError("ori_phy_mask and pred_phy_mask should have the same shape!")
-    compare_regions = ~torch.isnan(ori_phy_mask)
-    regions_in_pred = pred_phy_mask * compare_regions
-    regions_in_pred = torch.where(regions_in_pred == 0, torch.nan, regions_in_pred)
-    delta = torch.abs(regions_in_pred - ori_phy_mask)
-    delta_mask = ~torch.isnan(delta[0])
-
-    fric_dvalues = delta[0][delta_mask]
-    fric_mean_deviation = torch.mean(fric_dvalues)
-    fric_std_deviation = torch.std(fric_dvalues)
-
-    stiff_dvalues = delta[1][delta_mask]
-    stiff_mean_deviation = torch.mean(stiff_dvalues)
-    stiff_std_deviation = torch.std(stiff_dvalues)
-
-    return {
-        "fric_mean_deviat": fric_mean_deviation,
-        "fric_std_deviation": fric_std_deviation,
-        "fric_loss_raw": fric_dvalues,
-        "stiff_mean_deviat": stiff_mean_deviation,
-        "stiff_std_deviation": stiff_std_deviation,
-        "stiff_loss_raw": stiff_dvalues,
-    }
-
-
 def test_extractor():
     import cv2
     import os

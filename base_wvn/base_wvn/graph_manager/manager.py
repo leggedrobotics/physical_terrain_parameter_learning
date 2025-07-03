@@ -448,9 +448,7 @@ class Manager:
             block_name="into VDdataset",
             parent_method_name="make_batch_to_dataset",
         ):
-            dataset = VD_dataset(
-                batch_list, combine_batches=True, random_num=self._random_sample_num
-            )
+            dataset = VD_dataset(batch_list, random_num=self._random_sample_num)
 
         return dataset
 
@@ -573,7 +571,7 @@ class Manager:
                     res = self._model(dataset.get_x(batch_idx))
 
                     log_step = (self._step % 20) == 0
-                    self._loss, confidence, loss_dict = self._phy_loss(
+                    self._loss, loss_dict = self._phy_loss(
                         dataset,
                         res,
                         batch_idx=batch_idx,

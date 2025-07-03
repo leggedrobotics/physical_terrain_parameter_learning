@@ -22,7 +22,6 @@ from ..utils import (
     plot_image,
     plot_images_side_by_side,
     plot_images_in_grid,
-    compute_pred_phy_loss,
 )
 from ..model import VD_dataset
 from ..config.wvn_cfg import ParamCollection
@@ -297,8 +296,46 @@ def create_dataset_from_nodes(
             new_features = {list(compressed_feats.keys())[0]: feat_input}
             node.features = new_features
     batch_list = [mnode.query_valid_batch() for i, mnode in enumerate(nodes)]
-    dataset = VD_dataset(batch_list, combine_batches=True, random_num=1e10)
+    dataset = VD_dataset(batch_list, random_num=1e10)
     return dataset
+
+
+def compute_pred_phy_loss(
+    ori_phy_mask: torch.Tensor,
+    pred_phy_mask: torch.Tensor,
+):
+    """
+    To calculate the mean error of predicted physical params value in confident area of a image
+    phy_mask (2,H,W) H,W is the size of resized img
+    """
+    # check dim of phy_masks first
+    if (
+        ori_phy_mask.shape[-2] != pred_phy_mask.shape[-2]
+        or ori_phy_mask.shape[-1] != pred_phy_mask.shape[-1]
+    ):
+        raise ValueError("ori_phy_mask and pred_phy_mask should have the same shape!")
+    compare_regions = ~torch.isnan(ori_phy_mask)
+    regions_in_pred = pred_phy_mask * compare_regions
+    regions_in_pred = torch.where(regions_in_pred == 0, torch.nan, regions_in_pred)
+    delta = torch.abs(regions_in_pred - ori_phy_mask)
+    delta_mask = ~torch.isnan(delta[0])
+
+    fric_dvalues = delta[0][delta_mask]
+    fric_mean_deviation = torch.mean(fric_dvalues)
+    fric_std_deviation = torch.std(fric_dvalues)
+
+    stiff_dvalues = delta[1][delta_mask]
+    stiff_mean_deviation = torch.mean(stiff_dvalues)
+    stiff_std_deviation = torch.std(stiff_dvalues)
+
+    return {
+        "fric_mean_deviat": fric_mean_deviation,
+        "fric_std_deviation": fric_std_deviation,
+        "fric_loss_raw": fric_dvalues,
+        "stiff_mean_deviat": stiff_mean_deviation,
+        "stiff_std_deviation": stiff_std_deviation,
+        "stiff_loss_raw": stiff_dvalues,
+    }
 
 
 def nodes_mask_generation_and_phy_pred_error_computation(
@@ -773,100 +810,3 @@ def calculate_mask_values(mask):
     mean_val = np.nanmean(mask[non_nan_mask]) if np.any(non_nan_mask) else 0
 
     return max_val, mean_val
-
-
-def overlay_values_on_section(frame, max_val, mean_val, start_x):
-    font = cv2.FONT_HERSHEY_SIMPLEX
-    font_scale = 1.4
-    font_thickness = 2
-    text_color = (0, 0, 0)  # Black text
-    outline_color = (255, 255, 255)  # White outline
-    outline_thickness = 8
-
-    texts = [f"Max: {max_val:.2f}", f"Mean: {mean_val:.2f}"]
-    positions = [(start_x + 10, 110), (start_x + 10, 155)]  # Text positions
-
-    for text, position in zip(texts, positions):
-        # First, draw the outline
-        cv2.putText(
-            frame,
-            text,
-            position,
-            font,
-            font_scale,
-            outline_color,
-            outline_thickness,
-            lineType=cv2.LINE_AA,
-        )
-
-        # Then, draw the text
-        cv2.putText(
-            frame,
-            text,
-            position,
-            font,
-            font_scale,
-            text_color,
-            font_thickness,
-            lineType=cv2.LINE_AA,
-        )
-
-    return frame
-
-
-def add_headers_to_frame(frame, headers, section_width):
-    font = cv2.FONT_HERSHEY_SIMPLEX
-    font_scale = 2.0
-    font_thickness = 2
-    text_color = (0, 0, 0)  # Black text
-    outline_color = (255, 255, 255)  # White outline
-    outline_thickness = 8
-
-    for i, header in enumerate(headers):
-        # Calculate the position of the header
-        x_position = (
-            i * section_width + 10
-        )  # 10 pixels from the left edge of each section
-        y_position = 60  # 30 pixels from the top
-
-        # First, draw the outline
-        cv2.putText(
-            frame,
-            header,
-            (x_position, y_position),
-            font,
-            font_scale,
-            outline_color,
-            outline_thickness,
-            lineType=cv2.LINE_AA,
-        )
-
-        # Then, draw the text
-        cv2.putText(
-            frame,
-            header,
-            (x_position, y_position),
-            font,
-            font_scale,
-            text_color,
-            font_thickness,
-            lineType=cv2.LINE_AA,
-        )
-
-    return frame
-
-
-# Helper function to get output video path
-def get_output_video_path(param, directory, channel_index, use_conf_mask):
-    output_video_filename = "prediction_video"
-    if channel_index == 0:
-        output_video_filename += "_friction"
-    elif channel_index == 1:
-        output_video_filename += "_stiffness"
-    else:
-        raise ValueError("Invalid channel index")
-    if use_conf_mask:
-        output_video_filename += "_w_conf_mask.avi"
-    else:
-        output_video_filename += "_wo_conf_mask.avi"
-    return os.path.join(directory, output_video_filename)

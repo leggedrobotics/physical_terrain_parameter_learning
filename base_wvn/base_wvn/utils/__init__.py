@@ -10,7 +10,7 @@ from .confidence_mask_generator import (
     plot_pred_w_overlay,
     concat_feat_dict,
 )
-from .feat_extractor import *
+from .feat_extractor import FeatureExtractor
 from .image_projector import ImageProjector
 from .meshes import (
     make_superquadric,

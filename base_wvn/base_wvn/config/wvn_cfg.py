@@ -208,7 +208,7 @@ class ParamCollection(Serializable):
 
     @dataclass
     class ModelParams:
-        name: str = "SimpleMLP"  #  SimpleMLP, SeperateMLP,RndMLP,SeprndMLP
+        name: str = "SimpleMLP"
         load_ckpt: Optional[str] = None
 
         @dataclass
@@ -249,8 +249,8 @@ class ParamCollection(Serializable):
         # img_bag_path:str='/media/chen/Chen/rosbag_white/2nd/2024-01-16-21-45-48_anymal-d020-npc_0-003.bag'
         # img_bag_path:str='/media/chen/Chen/rosbag_lee/2023-12-03-11-57-12_anymal-d020-npc_1-004.bag'
 
-        test_images: bool = False  # output vis for image_buffer
-        test_nodes: bool = False  # output vis for node data
+        test_on_images: bool = False  # output vis for image_buffer
+        test_on_nodes: bool = False  # output vis for node data
         test_video: bool = False  # output dense pred video
         process_option: str = "all"  # 'all' or 'first_half' or 'first_100
 
