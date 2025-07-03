@@ -4,7 +4,12 @@
 # See LICENSE file in the project root for details.
 #
 #
-from .confidence_mask_generator import ConfidenceGenerator
+from .confidence_mask_generator import (
+    ConfidenceMaskGeneratorFactory,
+    MaskedPredictionData,
+    plot_pred_w_overlay,
+    concat_feat_dict,
+)
 from .feat_extractor import *
 from .image_projector import ImageProjector
 from .meshes import (

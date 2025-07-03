@@ -9,15 +9,16 @@ import numpy as np
 import os
 import cv2
 import matplotlib.pyplot as plt
-
+from matplotlib.axes import Axes
 import datetime
 from .. import WVN_ROOT_DIR
 from ..graph_manager import MainNode
 from ..utils import (
     FeatureExtractor,
+    MaskedPredictionData,
+    plot_pred_w_overlay,
     concat_feat_dict,
     plot_overlay_image,
-    compute_phy_mask,
     plot_image,
     plot_images_side_by_side,
     plot_images_in_grid,
@@ -25,7 +26,7 @@ from ..utils import (
 )
 from ..model import VD_dataset
 from ..config.wvn_cfg import ParamCollection
-from typing import List
+from typing import List, Dict, Tuple, Optional
 import pytorch_lightning as pl
 from segment_anything import SamPredictor, sam_model_registry
 
@@ -53,14 +54,14 @@ transform_pipeline = transforms.Compose(
 )
 
 
-def load_data(file):
+def load_data(file: str) -> torch.Tensor:
     """Load data from the data folder."""
     path = os.path.join(WVN_ROOT_DIR, file)
     data = torch.load(path)
     return data
 
 
-def load_one_test_image(path):
+def load_one_test_image(path: str) -> torch.Tensor:
     """return img in shape (B,C,H,W)"""
     image_path = path
     if path.lower().endswith(".pt"):
@@ -78,7 +79,7 @@ def load_one_test_image(path):
     return img
 
 
-def load_all_test_images(folder):
+def load_all_test_images(folder: str) -> Dict[str, torch.Tensor]:
     """Load all images from a folder and return them"""
     if "manager" in folder:
         is_pt_file = True
@@ -110,7 +111,7 @@ def load_all_test_images(folder):
     return images
 
 
-def find_latest_checkpoint(parent_dir):
+def find_latest_checkpoint(parent_dir: str) -> Optional[str]:
     # List all folders in the parent directory
     valid_folders = []
 
@@ -186,10 +187,12 @@ def sample_furthest_points(true_coords, num_points_to_sample, given_point=None):
         return true_coords[0][max_dist_index].unsqueeze(0).unsqueeze(0)
 
 
-def SAM_label_mask_generate(param: ParamCollection, nodes: List[MainNode]):
+def SAM_label_mask_generate(
+    param: ParamCollection, nodes: List[MainNode]
+) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Using segment anything model to generate gt label mask
-    Return: gt_masks in shape (B=node_num,1,H,W)
+    Return: gt_masks in shape (B=node_num,1,H,W) and node images in shape (B=node_num,C,H,W)
 
     """
     gt_masks = []
@@ -238,8 +241,6 @@ def SAM_label_mask_generate(param: ParamCollection, nodes: List[MainNode]):
         H, W, C = input_img.shape
         predictor.set_image(input_img)
         cor_images.append(img)
-        # resized_img=predictor.transform.apply_image_torch(img)
-        # predictor.set_torch_image(resized_img,img.shape[-2:])
         gt_mask_pts = torch.zeros_like(reproj_mask.unsqueeze(0).unsqueeze(0)).type(
             torch.int
         )
@@ -263,10 +264,6 @@ def SAM_label_mask_generate(param: ParamCollection, nodes: List[MainNode]):
             gt_mask_pts += gt_mask.type(torch.int)
             gt_mask_pts[gt_mask_pts > 0] = 1
         gt_mask = gt_mask_pts.type(torch.bool)
-        # masks, scores, _ = predictor.predict_torch(point_coords=true_coords_resized,point_labels=points_labels,multimask_output=True)
-        # _, max_score_indices = torch.max(scores, dim=1)
-        # gt_mask=masks[:,max_score_indices,:,:]
-
         gt_masks.append(gt_mask)
         torch.cuda.empty_cache()
 
@@ -304,13 +301,12 @@ def create_dataset_from_nodes(
     return dataset
 
 
-def conf_mask_generate(
+def nodes_mask_generation_and_phy_pred_error_computation(
     param: ParamCollection,
     nodes: List[MainNode],
-    feat_extractor: FeatureExtractor,
     model: pl.LightningModule,
     gt_masks: torch.Tensor,
-):
+) -> Dict[str, torch.Tensor]:
     """
     Here we use the model to generate confidence mask for each node
     Also the loss_recon is used to compute uncertainty histograms
@@ -338,32 +334,36 @@ def conf_mask_generate(
         )
         reproj_masks.append(reproj_mask)
         ori_imgs.append(img)
-        res_dict = compute_phy_mask(
-            img,
-            feat_extractor,
-            model.model,
-            model.loss_fn,
-            param.loss.confidence_threshold,
-            param.loss.confidence_mode,
-            param.offline.plot_nodes,
-            i,
-            time=model.time,
-            image_name="node" + str(node.timestamp),
-            param=param,
-            label_mask=node._supervision_mask,
+        trans_img, compressed_feat = model.feat_extractor.extract(img)
+        res: MaskedPredictionData = (
+            model.conf_mask_generator.get_confidence_masked_prediction_from_img(
+                trans_img=trans_img,
+                compressed_feats=compressed_feat,
+                model=model.model,
+                loss_fn=model.loss_fn,
+            )
         )
-        conf_mask = res_dict["conf_mask"]
-        loss_reco = res_dict["loss_reco"]
-        pred_phy_mask = res_dict["output_phy"]
+        if param.offline.plot_nodes:
+            plot_pred_w_overlay(
+                data=res,
+                time=model.time,
+                step=i,
+                image_name="node" + str(node.timestamp),
+                param=param,
+                save_local=True,
+            )
+        conf_mask = res.conf_mask
+        loss_reco = res.loss_reco
+        pred_phy_mask = res.masked_output_phy
         ori_phy_mask = node._supervision_mask.to(param.run.device)
-        # calculate phy loss
+        # calculate phy loss, w.r.t. the foothold labels (self-supervision)
         phy_loss_dict = compute_pred_phy_loss(
-            img, conf_mask, pred_phy_mask=pred_phy_mask, ori_phy_mask=ori_phy_mask
+            pred_phy_mask=pred_phy_mask, ori_phy_mask=ori_phy_mask
         )
         all_fric_losses.append(phy_loss_dict["fric_loss_raw"])
         all_stiff_losses.append(phy_loss_dict["stiff_loss_raw"])
         if param.offline.plot_hist:
-            calculate_uncertainty_plot(
+            calculate_and_save_uncertainty_histogram(
                 loss_reco,
                 conf_mask,
                 reproj_mask,
@@ -371,7 +371,7 @@ def conf_mask_generate(
                     folder_path, "hist", f"node_{i}_uncertainty_histogram.png"
                 ),
             )
-            calculate_uncertainty_plot(
+            calculate_and_save_uncertainty_histogram(
                 loss_reco,
                 gt_masks[i, :, :, :].unsqueeze(0),
                 reproj_mask,
@@ -388,7 +388,7 @@ def conf_mask_generate(
     all_losses = torch.cat(losses, dim=0)
     all_conf_masks = torch.cat(conf_masks, dim=0)
     if param.offline.plot_hist:
-        calculate_uncertainty_plot(
+        calculate_and_save_uncertainty_histogram(
             all_losses,
             all_conf_masks,
             all_reproj_masks,
@@ -424,7 +424,7 @@ def conf_mask_generate(
     }
 
 
-def calculate_uncertainty_plot(
+def calculate_and_save_uncertainty_histogram(
     all_losses: torch.Tensor,
     all_conf_masks: torch.Tensor,
     all_reproj_masks: torch.Tensor = None,
@@ -611,10 +611,10 @@ def plot_masks_compare(
     gt_masks: torch.Tensor,
     conf_masks: torch.Tensor,
     images: torch.Tensor,
-    file_path,
-    layout_type="side_by_side",
-    param=None,
-):
+    file_path: str,
+    layout_type: str = "side_by_side",
+    param: ParamCollection = None,
+) -> None:
     """
     Plot ground truth masks, confidence masks, and images side by side and save to file.
 
@@ -685,9 +685,9 @@ def plot_masks_compare(
 def masks_iou_stats(
     gt_masks: torch.Tensor,
     pred_masks: torch.Tensor,
-    output_file="iou_stats.txt",
-    name="debug",
-):
+    output_file: str = "iou_stats.txt",
+    name: str = "debug",
+) -> Dict[str, float]:
     """
     Calculates the Intersection over Union (IoU) metric for each predicted mask against the ground truth.
     """
@@ -720,7 +720,7 @@ def masks_iou_stats(
     return {"iou_mean": iou_mean, "iou_std": iou_std}
 
 
-def show_mask(mask, ax, random_color=False):
+def show_mask(mask: torch.Tensor, ax: Axes, random_color: bool = False) -> None:
     if isinstance(mask, torch.Tensor):
         mask = mask.cpu().numpy()
     if random_color:

@@ -11,8 +11,10 @@ Main node to process ros messages, publish the relevant topics, train the model.
 from base_wvn.utils import (
     FeatureExtractor,
     ImageProjector,
+    ConfidenceMaskGeneratorFactory,
+    MaskedPredictionData,
+    plot_pred_w_overlay,
     plot_overlay_image,
-    compute_phy_mask,
     add_color_bar_and_save,
 )
 from base_wvn.graph_manager import Manager, MainNode, SubNode
@@ -59,8 +61,10 @@ class MainProcess(RosNode):
         self.last_image_saved_ts = self.start_time
         self.today = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
-        # Init feature extractor
         self.feat_extractor = FeatureExtractor(self.param)
+        self.conf_mask_generator = ConfidenceMaskGeneratorFactory.create(
+            mode=self.param.loss.confidence_mode, device=self.device
+        )
 
         # Init graph manager
         self.manager = Manager(
@@ -435,7 +439,7 @@ class MainProcess(RosNode):
 
             # ----- visualization -----
             # 1. publish the masked dense prediction from the latest img received, it is slow by publishing images
-            self.update_prediction(main_node, ts, img_msg.header)
+            self.pub_node_prediction(main_node, ts, img_msg.header)
 
             # 2. publish a green cube marker where the latest main node is
             if self.param.logger.vis_new_node and added_new_node:
@@ -582,15 +586,15 @@ class MainProcess(RosNode):
             #     if self.param.general.online_training:
             #         self.manager.save_ckpt(self.param.general.model_path,f"checkpoint_{step}.pt")
             #     # update real-time pred once
-            #     # self.update_prediction(self.manager._vis_main_node)
+            #     # self.pub_node_prediction(self.manager._vis_main_node)
             #     linodes=self.manager._main_graph.get_valid_nodes()
             #     if len(linodes)>0:
-            #         self.update_prediction(linodes[0])
+            #         self.pub_node_prediction(linodes[0])
             # linodes=self.manager._main_graph.get_valid_nodes()
             # if len(linodes)>0:
-            #     self.update_prediction(linodes[0],step_time)
+            #     self.pub_node_prediction(linodes[0],step_time)
             # or plot the latest node
-            # self.update_prediction(main_node)
+            # self.pub_node_prediction(main_node)
             i += 1
             time.sleep(1 / self.param.thread.learning_rate)
 
@@ -601,7 +605,7 @@ class MainProcess(RosNode):
         self.learning_thread_stop_event.clear()
 
     @accumulate_time
-    def update_prediction(
+    def pub_node_prediction(
         self,
         node: MainNode,
         ts: Optional[float] = None,
@@ -609,7 +613,6 @@ class MainProcess(RosNode):
     ) -> None:
         if not hasattr(node, "image") or node.image is None:
             return
-        img = node.image.to(self.device)
         # the image feats in node is on cpu
         trans_img = node.image.to(self.device)
         if isinstance(node.features, dict):
@@ -620,60 +623,68 @@ class MainProcess(RosNode):
             raise ValueError(
                 "The features in node is not a dict, only support dict now!"
             )
-        res_dict = compute_phy_mask(
-            img,
-            self.feat_extractor,
-            self.manager._model,
-            self.manager._phy_loss,
-            self.param.loss.confidence_threshold,
-            self.param.loss.confidence_mode,
-            self.param.general.plot_overlay_online,
-            self.manager.step,
-            image_name=str(node.timestamp),
-            trans_img=trans_img,
-            compressed_feats=feats_input,
-            param=self.param,
-            label_mask=node._supervision_mask,
+        res: MaskedPredictionData = (
+            self.conf_mask_generator.get_confidence_masked_prediction_from_img(
+                trans_img=trans_img,
+                compressed_feats=feats_input,
+                model=self.manager._model,
+                loss_fn=self.manager._phy_loss,
+            )
         )
-        # conf_mask=res_dict['conf_mask']
-        # pred_phy_mask=res_dict['output_phy']
-        # ori_phy_mask= node._supervision_mask.to(self.param.run.device)
-        overlay_imgs = res_dict["overlay_imgs"]
+        fric_vis_imgs, stiff_vis_imgs = plot_pred_w_overlay(
+            data=res,
+            time="online",
+            image_name=str(node.timestamp),
+            step=self.manager.step,
+            param=self.param,
+            foothold_label_mask=node._supervision_mask,
+            save_local=False,
+        )
+
+        if self.param.general.pub_which_pred == "fric":
+            overlay_imgs = fric_vis_imgs
+            masked_phy_pub = res.masked_output_phy[0]
+        elif self.param.general.pub_which_pred == "stiff":
+            overlay_imgs = stiff_vis_imgs
+            masked_phy_pub = res.masked_output_phy[1]
+        else:
+            raise ValueError(
+                "pub_which_pred should be either 'fric' or 'stiff', got {}".format(
+                    self.param.general.pub_which_pred
+                )
+            )
+
         if ts:
             self.overlay_img_frames[ts] = overlay_imgs
         else:
             self.overlay_img_frames[node.timestamp] = overlay_imgs
         bridge = CvBridge()
         if self.layer_num == 1:
-            masked_phy = res_dict["output_phy"]
-            fric_masked_phy = masked_phy[0]
-            if fric_masked_phy.is_cuda:
-                fric_masked_phy_np = fric_masked_phy.cpu().numpy()
-            else:
-                fric_masked_phy_np = fric_masked_phy.numpy()
-
+            masked_phy_pub_np = masked_phy_pub.cpu().numpy()
             # Ensure the numpy array is float32
-            if fric_masked_phy_np.dtype != np.float32:
-                fric_masked_phy_np = fric_masked_phy_np.astype(np.float32)
-            img_msg = bridge.cv2_to_imgmsg(fric_masked_phy_np)
+            if masked_phy_pub_np.dtype != np.float32:
+                masked_phy_pub_np = masked_phy_pub_np.astype(np.float32)
+            # can adjust to stiff if needed
+            img_msg = bridge.cv2_to_imgmsg(masked_phy_pub_np)
         elif self.layer_num == 3:
-            last_image_pil = overlay_imgs[-1]  # This is your PIL.Image object
+            last_image_pil = overlay_imgs[-1]  # This is masked prediction image
 
             #    Convert PIL.Image to a numpy array
             last_image_np = np.array(last_image_pil)
 
             # Convert the numpy array to a ROS CompressedImage message
-
             last_image_np = cv2.cvtColor(last_image_np, cv2.COLOR_RGB2BGR)
             img_msg = bridge.cv2_to_imgmsg(last_image_np, "bgr8")
 
         # calculate phy loss
         self.log("prediction_done", self.log_data["prediction_done"] + 1)
-
         img_msg.header = header
 
         # Publish the message
-        self.camera_handler["fric_pub"].publish(img_msg)
+        if self.param.general.pub_which_pred == "fric":
+            self.camera_handler["fric_pub"].publish(img_msg)
+        elif self.param.general.pub_which_pred == "stiff":
+            self.camera_handler["stiff_pub"].publish(img_msg)
         timestamp = rospy.Time.from_sec(ts)
         self.camera_handler["new_camera_info"].header.stamp = timestamp
         self.camera_handler["info_pub"].publish(self.camera_handler["new_camera_info"])
@@ -682,10 +693,11 @@ class MainProcess(RosNode):
         channel_info_msg.header = deepcopy(
             self.camera_handler["new_camera_info"].header
         )
+        channel_str = self.param.general.pub_which_pred
         if self.layer_num == 1:
-            channel_info_msg.channels = ["friction"]
+            channel_info_msg.channels = [channel_str]
         elif self.layer_num == 3:
-            channel_info_msg.channels = ["friction_rgb"]
+            channel_info_msg.channels = [channel_str + "_rgb"]
         self.camera_handler["channel_pub"].publish(channel_info_msg)
 
     @accumulate_time

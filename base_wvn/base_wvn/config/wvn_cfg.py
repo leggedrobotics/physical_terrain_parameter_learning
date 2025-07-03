@@ -233,6 +233,7 @@ class ParamCollection(Serializable):
     @dataclass
     class OfflineParams:
         mode: str = "train"
+        max_epochs: int = 5
         env: str = "vowhite_both"  # vowhite_both
         reload_model: bool = False
         use_online_ckpt: bool = False

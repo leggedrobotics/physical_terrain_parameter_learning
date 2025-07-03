@@ -5,24 +5,14 @@
 #
 #
 import torch
-import torch.nn.functional as F
+
 from .dinov2_interface import Dinov2Interface
 
-from .visualizer import (
-    plot_overlay_image,
-    plot_image,
-)
-from ..config import save_to_yaml, ParamCollection
-import PIL.Image
-from .loss import PhyLoss
-import numpy as np
+from ..config import ParamCollection
+
 from torchvision import transforms as T
-from typing import Union, Dict, Tuple
+from typing import Dict, Tuple
 from base_wvn import WVN_ROOT_DIR
-from sklearn.mixture import GaussianMixture
-import os
-from scipy.stats import norm
-from scipy.optimize import fsolve
 
 
 class FeatureExtractor:
@@ -84,6 +74,7 @@ class FeatureExtractor:
             compressed_feats (Dict): DINOv2 outputs feat in patches {(scale_h,scale_w):feat-->(B,C,H,W))}
         """
         B, C, H, W = img.shape
+        img = img.to(self._device)
         if H != self.target_height:  # we scale based on the height
             self.init_transform(original_height=H, original_width=W)
             transformed_img = self.transform(img)
@@ -187,270 +178,12 @@ class FeatureExtractor:
         return feat_dict
 
 
-def concat_feat_dict(feat_dict: Dict[tuple, torch.Tensor]):
-    """Concatenate features from different scales, all upsamples to the first scale (expected to be the highest resolution)"""
-    """ Return: sparse_features (B,H*W/segs_num,C)
-        feat_height: H
-        feat_width: W
-    """
-    first_shape = list(feat_dict.values())[0].shape
-    scales_h = [first_shape[2] / feat.shape[2] for feat in feat_dict.values()]
-    scales_w = [first_shape[3] / feat.shape[3] for feat in feat_dict.values()]
-    # upsampling the feat of each scale
-    resized_feats = [
-        F.interpolate(feat.type(torch.float32), scale_factor=(scale_h, scale_w))
-        for scale_h, scale_w, feat in zip(scales_h, scales_w, feat_dict.values())
-    ]
-    resized_feats = torch.cat(resized_feats, dim=1)
-    resized_feats = resized_feats.permute(0, 2, 3, 1)
-    sparse_features = resized_feats.reshape(
-        resized_feats.shape[0], resized_feats.shape[1] * resized_feats.shape[2], -1
-    )
-    return sparse_features, first_shape[2], first_shape[3]
-
-
-def compute_phy_mask(
-    img: torch.Tensor,
-    feat_extractor: FeatureExtractor = None,
-    model=None,
-    loss_fn: PhyLoss = None,
-    confidence_threshold=0.8,
-    mode="fixed",
-    plot_and_save: bool = False,
-    step: int = 0,
-    **kwargs,
-):
-    """process the original_img and return the phy_mask in resized img shape(non-confident--> nan)
-    Shape of phy_mask: (2,H,W) H,W is the size of resized img
-    Return: conf_mask (1,1,H,W) H,W is the size of resized img
-
-    """
-
-    if mode != "fixed":
-        preserved = confidence_threshold
-        confidence_threshold = None
-    # in online mode, no need to use extract again, just input these outputs
-    trans_img = kwargs.get("trans_img", None)
-    compressed_feats = kwargs.get("compressed_feats", None)
-    use_conf_mask = kwargs.get("use_conf_mask", True)
-    if trans_img is None or compressed_feats is None:
-        if feat_extractor is None:
-            raise ValueError("feat_extractor is None!")
-        trans_img, compressed_feats = feat_extractor.extract(img)
-    feat_input, H, W = concat_feat_dict(compressed_feats)
-    feat_input = feat_input.squeeze(0)
-    output = model(feat_input)
-    confidence, loss_reco, loss_reco_raw = loss_fn.compute_confidence_only(
-        output, feat_input
-    )
-    confidence = confidence.reshape(H, W)
-    loss_reco = loss_reco.reshape(H, W)
-
-    if isinstance(output, tuple):
-        phy_dim = output[1].shape[1] - output[0].shape[1]
-        output = output[1]
-    else:
-        phy_dim = output.shape[1] - feat_input.shape[1]
-    output_phy = output[:, -phy_dim:].reshape(H, W, 2).permute(2, 0, 1)
-    if use_conf_mask:
-        if confidence_threshold is not None:
-            # use fixed confidence threshold to segment the phy_mask
-            unconf_mask = confidence < confidence_threshold
-        else:
-            if mode == "gmm_1d":
-                # use 1d GMM with k=2 to segment the phy_mask
-                # Flatten the loss_reco to fit the GMM
-                loss_reco_flat = (
-                    loss_reco.flatten().detach().cpu().numpy().reshape(-1, 1)
-                )
-
-                gmm_k2 = GaussianMixture(n_components=2, random_state=42)
-                gmm_k2.fit(loss_reco_flat)
-
-                # Predict the clusters for each data point (loss value)
-                gmm_labels = gmm_k2.predict(loss_reco_flat)
-                # Assume the cluster with the larger mean loss is the unconfident one
-                unconfident_cluster = gmm_k2.means_.argmax()
-
-                # Create a mask from GMM predictions
-                unconf_mask = (gmm_labels == unconfident_cluster).reshape(H, W)
-                unconf_mask = torch.from_numpy(unconf_mask).to(img.device)
-
-                mean1, std1 = gmm_k2.means_[0, 0], np.sqrt(gmm_k2.covariances_[0, 0])
-                mean2, std2 = gmm_k2.means_[1, 0], np.sqrt(gmm_k2.covariances_[1, 0])
-
-                thresholds = find_gmm_thresholds(mean1, std1, mean2, std2)
-
-            elif mode == "gmm_all":
-                data = loss_reco_raw.detach().cpu().numpy()
-                data_reduced = data[:, :10]
-                gmm = GaussianMixture(
-                    n_components=2, covariance_type="full", random_state=0
-                )
-                gmm.fit(data_reduced)
-                # mean_losses = gmm.means_.mean(axis=1)
-
-                # # Determine which cluster has the larger mean across all dimensions
-                # unconfident_cluster = mean_losses.argmax()
-                # Calculate the mean of squared values for each component's mean
-                mean_losses_squared = np.square(gmm.means_).mean(axis=1)
-
-                # Determine the unconfident cluster based on higher mean squared losses
-                unconfident_cluster = mean_losses_squared.argmax()
-
-                # Predict the cluster for each sample
-                gmm_labels = gmm.predict(data_reduced)
-
-                # Create a mask where the unconfident cluster is True
-                unconf_mask = (gmm_labels == unconfident_cluster).reshape(H, W)
-                unconf_mask = torch.from_numpy(unconf_mask).to(img.device)
-
-                pass
-    else:
-        # in the case we don't use confidence mask, we just set all the mask to be False
-        unconf_mask = torch.zeros_like(confidence).to(img.device).type(torch.bool)
-
-    mask = unconf_mask.unsqueeze(0).repeat(output_phy.shape[0], 1, 1)
-    output_phy_ori = output_phy.clone()
-    output_phy[mask] = torch.nan
-    if (
-        output_phy.shape[-2] != trans_img.shape[-2]
-        or output_phy.shape[-1] != trans_img.shape[-1]
-    ):
-        # upsample the output
-        output_phy = F.interpolate(
-            output_phy.unsqueeze(0).type(torch.float32), size=trans_img.shape[-2:]
-        ).squeeze(0)
-        output_phy_ori = F.interpolate(
-            output_phy_ori.unsqueeze(0).type(torch.float32), size=trans_img.shape[-2:]
-        ).squeeze(0)
-    conf_mask = ~unconf_mask
-    conf_mask_resized = (
-        F.interpolate(
-            conf_mask.type(torch.float32).unsqueeze(0).unsqueeze(0),
-            size=trans_img.shape[-2:],
-        )
-        > 0
-    )
-    loss_reco_resized = F.interpolate(
-        loss_reco.unsqueeze(0).unsqueeze(0), size=trans_img.shape[-2:]
-    )
-    # loss_threshold=thresholds[0]
-    torch.cuda.empty_cache()
-    return_dict = {
-        "output_phy": output_phy.detach(),
-        "trans_img": trans_img,
-        "confidence": confidence,
-        "conf_mask": conf_mask_resized,
-        "loss_reco": loss_reco_resized,
-        "loss_reco_raw": loss_reco_raw,
-        "conf_mask_raw": conf_mask,
-    }
-    if plot_and_save:
-        time = kwargs.get("time", "online")
-        param = kwargs.get("param", None)
-        image_name = kwargs.get("image_name", "anonymous")
-
-        output_dir = os.path.join(WVN_ROOT_DIR, param.offline.ckpt_parent_folder, time)
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-        channel_num = output_phy.shape[0]
-        # process trans_img for plotting
-        trans_img_uint = plot_image(trans_img.squeeze(0))
-        trans_img_pil = PIL.Image.fromarray(trans_img_uint)
-        trans_img_pil = rot_or_not(trans_img_pil, param)
-        # process possible label_mask for plotting if given
-        label_mask = kwargs.get("label_mask", None)
-
-        for i in range(channel_num):
-            output_phy = output_phy.detach()
-            output_phy_ori = output_phy_ori.detach()
-            overlay_img = plot_overlay_image(
-                trans_img, overlay_mask=output_phy, channel=i, alpha=1.0
-            )
-            overlay_img_raw = plot_overlay_image(
-                trans_img, overlay_mask=output_phy_ori, channel=i, alpha=1.0
-            )
-            # ---debug for paper plotting, conf mask section---
-            # overlay_img=plot_overlay_image_binary(trans_img, overlay_mask=output_phy, channel=i,alpha=0.7)
-            out_image = PIL.Image.fromarray(overlay_img)
-            out_image_raw = PIL.Image.fromarray(overlay_img_raw)
-            rotated_image = rot_or_not(out_image, param)
-            rotated_image_raw = rot_or_not(out_image_raw, param)
-
-            # process possible label_mask for plotting if given
-            if label_mask is not None:
-                label = label_mask.detach()
-                overlay_label = plot_overlay_image(
-                    trans_img, overlay_mask=label, channel=i, alpha=0.9
-                )
-                overlay_label_img = PIL.Image.fromarray(overlay_label)
-                overlay_label_img = rot_or_not(overlay_label_img, param)
-
-            # Construct a filename
-            if i == 0:
-                filename = f"{image_name}_fric_den_pred_step_{step}_{mode}.jpg"
-            elif i == 1:
-                filename = f"{image_name}_stiff_den_pred_step_{step}_{mode}.jpg"
-            file_path = os.path.join(output_dir, filename)
-            # Save the image
-            # rotated_image.save(file_path)
-
-            vis_imgs = [trans_img_pil]
-            if label_mask is not None:
-                vis_imgs.append(overlay_label_img)
-            vis_imgs.append(rotated_image_raw)
-            vis_imgs.append(rotated_image)
-            # add colorbar to overlay image and then save
-            # for paper video, uncomment
-            if i == 0:
-                fric_vis_imgs = vis_imgs
-            elif i == 1:
-                stiff_vis_imgs = vis_imgs
-            # add_color_bar_and_save(vis_imgs,i, file_path)
-
-        if param is not None:
-            param_path = os.path.join(output_dir, "param.yaml")
-            save_to_yaml(param, param_path)
-            return_dict["overlay_imgs"] = (
-                fric_vis_imgs
-                if param.general.pub_which_pred == "fric"
-                else stiff_vis_imgs
-            )
-    # return output_phy,trans_img,confidence,conf_mask_resized
-    torch.cuda.empty_cache()
-    return return_dict
-
-
-def rot_or_not(img, param):
-    if param is not None:
-        if isinstance(img, PIL.Image.Image) and "v4l2" in param.roscfg.camera_topic:
-            # Rotate the image by 180 degrees
-            img = img.rotate(180)
-    return img
-
-
-def find_gmm_thresholds(mean1, std1, mean2, std2):
-    def equations(x):
-        return norm.pdf(x, mean1, std1) - norm.pdf(x, mean2, std2)
-
-    # Initial guess for the intersection point is the midpoint between the means
-    x0 = np.mean([mean1, mean2])
-    solution = fsolve(equations, x0)
-
-    return solution
-
-
 def compute_pred_phy_loss(
-    img: torch.Tensor,
-    conf_mask: torch.Tensor,
     ori_phy_mask: torch.Tensor,
     pred_phy_mask: torch.Tensor,
-    **kwargs,
 ):
     """
     To calculate the mean error of predicted physical params value in confident area of a image
-    conf_mask (1,1,H,W) H,W is the size of resized img
     phy_mask (2,H,W) H,W is the size of resized img
     """
     # check dim of phy_masks first
@@ -464,9 +197,6 @@ def compute_pred_phy_loss(
     regions_in_pred = torch.where(regions_in_pred == 0, torch.nan, regions_in_pred)
     delta = torch.abs(regions_in_pred - ori_phy_mask)
     delta_mask = ~torch.isnan(delta[0])
-    # parent=torch.sum(delta_mask)
-    # fric_mean_deviat=torch.nansum(delta[0])/parent
-    # stiff_mean_deviat=torch.nansum(delta[1])/parent
 
     fric_dvalues = delta[0][delta_mask]
     fric_mean_deviation = torch.mean(fric_dvalues)

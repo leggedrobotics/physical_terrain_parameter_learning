@@ -18,8 +18,8 @@ from base_wvn.offline.dataset_cls import *
 from base_wvn.utils import (
     PhyLoss,
     FeatureExtractor,
-    plot_overlay_image,
-    compute_phy_mask,
+    ConfidenceMaskGeneratorFactory,
+    plot_pred_w_overlay,
 )
 from base_wvn.model import get_model
 from base_wvn.config.wvn_cfg import ParamCollection
@@ -59,15 +59,17 @@ class DecoderLightning(pl.LightningModule):
                     params.offline.image_file,
                 )
             )
-        B, C, H, W = self.test_img.shape
         self.feat_extractor = FeatureExtractor(self.params)
+        self.conf_mask_generator = ConfidenceMaskGeneratorFactory.create(
+            mode=params.loss.confidence_mode, device=params.run.device
+        )
         self.loss_fn = PhyLoss(
             w_pred=loss_params.w_pred,
             w_reco=loss_params.w_reco,
             method=loss_params.method,
             reco_loss_type=loss_params.reco_loss_type,
         )
-        self.validator = Validator(params)
+        self.err_computer = MaskedPredErrorComputer(params)
         self.val_loss = 0.0
         self.time = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
@@ -86,9 +88,9 @@ class DecoderLightning(pl.LightningModule):
         self.log("train_loss", loss)
 
         if self.params.offline.upload_error_stats_in_training:
-            stats_dict = self.validator.go(self, self.feat_extractor)
+            stats_dict = self.err_computer.go(self)
 
-            # upload the error stats calculated by the validator
+            # upload the error stats calculated by the err_computer
             # for all recorded nodes of the current model
             self.log("fric_error_mean", stats_dict["fric_mean"])
             self.log("fric_error_std", stats_dict["fric_std"])
@@ -97,50 +99,6 @@ class DecoderLightning(pl.LightningModule):
             self.log("iou_mean", stats_dict["iou_mean"])
             self.log("iou_std", stats_dict["iou_std"])
 
-        if self.params.offline.plot_hist or self.step == 19:
-            res_dict = compute_phy_mask(
-                self.test_img,
-                self.feat_extractor,
-                self.model,
-                self.loss_fn,
-                self.params.loss.confidence_threshold,
-                self.params.loss.confidence_mode,
-                self.params.offline.plot_overlay,
-                self.step,
-                time=self.time,
-                param=self.params,
-            )
-            conf_mask = res_dict["conf_mask"]
-            loss_reco = res_dict["loss_reco"]
-
-            colored_loss_mask = calculate_uncertainty_plot(
-                loss_reco,
-                conf_mask,
-                all_reproj_masks=None,
-                save_path=os.path.join(
-                    WVN_ROOT_DIR,
-                    self.params.offline.ckpt_parent_folder,
-                    self.time,
-                    "hist",
-                    f"trainstep_{self.step}_uncertainty_histogram.png",
-                ),
-                colormap=self.params.offline.hist_colormap,
-            )
-            alpha = self.params.offline.colored_mask_alpha
-            overlay_img = (
-                self.test_img.squeeze(0).permute(1, 2, 0).cpu().numpy() * (1 - alpha)
-                + colored_loss_mask * alpha
-            )
-            plt.imsave(
-                os.path.join(
-                    WVN_ROOT_DIR,
-                    self.params.offline.ckpt_parent_folder,
-                    self.time,
-                    "hist",
-                    f"trainstep_{self.step}_overlay.png",
-                ),
-                overlay_img,
-            )
         self.step += 1
         return loss
 
@@ -155,26 +113,27 @@ class DecoderLightning(pl.LightningModule):
         loss, confidence, loss_dict = self.loss_fn(
             (xs, ys), res, step=self.step, update_generator=False
         )
-        # if batch_idx==0 and self.step%10==0:
         if batch_idx == 0:
-            res_dict = compute_phy_mask(
-                self.test_img,
-                self.feat_extractor,
-                self.model,
-                self.loss_fn,
-                self.params.loss.confidence_threshold,
-                self.params.loss.confidence_mode,
-                self.params.offline.plot_overlay,
-                self.step,
-                time=self.time,
-                param=self.params,
+            trans_img, compressed_feat = self.feat_extractor.extract(self.test_img)
+            res = self.conf_mask_generator.get_confidence_masked_prediction_from_img(
+                trans_img=trans_img,
+                compressed_feats=compressed_feat,
+                model=self.model,
+                loss_fn=self.loss_fn,
             )
-            conf_mask = res_dict["conf_mask"]
-            loss_reco = res_dict["loss_reco"]
+            if self.params.offline.plot_overlay:
+                plot_pred_w_overlay(
+                    data=res,
+                    time=self.time,
+                    step=self.step,
+                    image_name="val_overlay",
+                    param=self.params,
+                    save_local=True,
+                )
 
-            colored_loss_mask = calculate_uncertainty_plot(
-                loss_reco,
-                conf_mask,
+            colored_loss_mask = calculate_and_save_uncertainty_histogram(
+                res.loss_reco,
+                res.conf_mask,
                 all_reproj_masks=None,
                 save_path=os.path.join(
                     WVN_ROOT_DIR,
@@ -254,8 +213,6 @@ def train_and_evaluate(param: ParamCollection):
             tags=["offline", param.offline.env, param.general.name],
         )
 
-        max_epochs = 5  # 8 ,3 for 2nd , 5 for 1st, TODO, move into config file
-
         # load train and val data from nodes_datafile (should include all pixels of supervision masks)
         train_data_raw = load_data(
             os.path.join(
@@ -295,23 +252,18 @@ def train_and_evaluate(param: ParamCollection):
             model.feat_extractor,
         )
         val_dataset = EntireDataset(val_data)
-        batch_size = 100
-        shuffle = True
+        batch_size = param.graph.random_sample_num
 
-        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=shuffle)
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
         # batch in loader is a tuple of (xs, ys)
         # xs:(1, 100, feat_dim), ys:(1, 100, 2)
-        sample_input, sample_output = next(iter(train_loader))
-        device = sample_input.device
-        feat_dim = sample_input.shape[-1]
-        label_dim = sample_output.shape[-1]
 
         trainer = Trainer(
             accelerator="gpu",
             devices=[0],
             logger=neptune_logger,
-            max_epochs=max_epochs,
+            max_epochs=param.offline.max_epochs,
             max_steps=80,
             log_every_n_steps=1,
             limit_train_batches=0.5,
@@ -351,7 +303,6 @@ def train_and_evaluate(param: ParamCollection):
         )
         model.val_loss = checkpoint["loss"]
         model.model.eval()
-        feat_extractor = FeatureExtractor(param)
         """ 
         plot phy_masks (two channels) on a set of test images
         """
@@ -360,19 +311,22 @@ def train_and_evaluate(param: ParamCollection):
                 os.path.join(param.offline.data_folder, "val", param.offline.env)
             )
             for name, img in test_imgs.items():
-                compute_phy_mask(
-                    img,
-                    feat_extractor,
-                    model.model,
-                    model.loss_fn,
-                    param.loss.confidence_threshold,
-                    param.loss.confidence_mode,
-                    True,
-                    -1,
+                trans_img, compressed_feat = model.feat_extractor.extract(img)
+                res = (
+                    model.conf_mask_generator.get_confidence_masked_prediction_from_img(
+                        trans_img=trans_img,
+                        compressed_feats=compressed_feat,
+                        model=model.model,
+                        loss_fn=model.loss_fn,
+                    )
+                )
+                plot_pred_w_overlay(
+                    data=res,
                     time=model.time,
+                    step=-1,
                     image_name=name,
                     param=param,
-                    use_conf_mask=False,
+                    save_local=True,
                 )
 
         """ 
@@ -380,8 +334,8 @@ def train_and_evaluate(param: ParamCollection):
         """
         if param.offline.test_nodes:
             # READ nodes datafile and gt_masks datafile
-            validator = Validator(param)
-            stats_dict = validator.go(model, feat_extractor)
+            err_computer = MaskedPredErrorComputer(param)
+            stats_dict = err_computer.go(model)
             return stats_dict
 
         """ 
@@ -418,50 +372,38 @@ def train_and_evaluate(param: ParamCollection):
                     # Convert ROS Image message to OpenCV image
                     img_torch = rc.ros_image_to_torch(msg, device=param.run.device)
                     img = img_torch[None]
-
-                    out_dict = compute_phy_mask(
-                        img,
-                        feat_extractor,
-                        model.model,
-                        model.loss_fn,
-                        param.loss.confidence_threshold,
-                        param.loss.confidence_mode,
-                        False,
-                        -1,
+                    trans_img, compressed_feat = model.feat_extractor.extract(img)
+                    res = model.conf_mask_generator.get_confidence_masked_prediction_from_img(
+                        trans_img=trans_img,
+                        compressed_feats=compressed_feat,
+                        model=model.model,
+                        loss_fn=model.loss_fn,
+                    )
+                    fric_vis_imgs, stiff_vis_imgs = plot_pred_w_overlay(
+                        data=res,
                         time=model.time,
+                        step=-1,
+                        image_name=name,
                         param=param,
-                        use_conf_mask=False,
+                        save_local=False,
                     )
-                    trans_img = out_dict["trans_img"].detach()
-                    output_phy = out_dict["output_phy"].detach()
-                    overlay_img = plot_overlay_image(
-                        trans_img, overlay_mask=output_phy, channel=i, alpha=1.0
-                    )
-                    ori_img = plot_overlay_image(trans_img)
-
-                    out_dict = compute_phy_mask(
-                        img,
-                        feat_extractor,
-                        model.model,
-                        model.loss_fn,
-                        param.loss.confidence_threshold,
-                        param.loss.confidence_mode,
-                        False,
-                        -1,
-                        time=model.time,
-                        param=param,
-                        use_conf_mask=True,
-                    )
-                    trans_img = out_dict["trans_img"].detach()
-                    output_phy = out_dict["output_phy"].detach()
-                    max_val, mean_val = calculate_mask_values(output_phy[i])
-                    overlay_img_wm = plot_overlay_image(
-                        trans_img, overlay_mask=output_phy, channel=i, alpha=1.0
-                    )
+                    if param.general.pub_which_pred == "fric":
+                        overlay_img = fric_vis_imgs
+                    elif param.general.pub_which_pred == "stiff":
+                        overlay_img = stiff_vis_imgs
+                    else:
+                        raise ValueError(
+                            "Invalid pub_which_pred value. Must be 'fric' or 'stiff'."
+                        )
 
                     # Convert back to OpenCV image and store
                     frame = np.concatenate(
-                        (ori_img, overlay_img, overlay_img_wm), axis=1
+                        (
+                            np.uint8(overlay_img[0]),
+                            np.uint8(overlay_img[1]),
+                            np.uint8(overlay_img[2]),
+                        ),
+                        axis=1,
                     )
                     frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
 
@@ -500,7 +442,7 @@ def train_and_evaluate(param: ParamCollection):
         return None
 
 
-class Validator:
+class MaskedPredErrorComputer:
     def __init__(self, param: ParamCollection) -> None:
         mode = (
             "train"  # use train dataset for validation or test dataset for validation
@@ -549,9 +491,9 @@ class Validator:
         self.gt_masks = gt_masks
         print("gt_masks shape:{}".format(gt_masks.shape))
 
-    def go(self, model: pl.LightningModule, feat_extractor: FeatureExtractor):
-        output_dict = conf_mask_generate(
-            self.param, self.nodes, feat_extractor, model, self.gt_masks
+    def go(self, model: pl.LightningModule):
+        output_dict = nodes_mask_generation_and_phy_pred_error_computation(
+            self.param, self.nodes, model, self.gt_masks
         )
         return_dict = {}
 
