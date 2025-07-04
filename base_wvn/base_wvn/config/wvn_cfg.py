@@ -182,6 +182,7 @@ class ParamCollection(Serializable):
     class GraphParams:
         """Parameters for the graph."""
 
+        max_node_number: int = 40
         update_range_main_graph: float = 5  # 50
         cut_threshold: float = 5.0
         edge_dist_thr_main_graph: float = 0.2  # 0.2

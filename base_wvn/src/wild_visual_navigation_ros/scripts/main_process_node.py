@@ -422,13 +422,7 @@ class MainProcess(RosNode):
                 )
 
             # ----- visualization -----
-            # 1. publish the masked dense prediction from the latest img received, it is slow by publishing images
-            # linodes = self.manager._main_graph.get_valid_nodes()
-            # if len(linodes) > 0:
-            #     self.pub_node_prediction(linodes[0], ts, img_msg.header)
-            # self.pub_node_prediction(main_node, ts, img_msg.header)
-
-            # 2. publish a green cube marker where the latest main node is
+            # 1. publish a green cube marker where the latest main node is
             if self.param.logger.vis_new_node and added_new_node:
                 self.visualize_new_node(
                     pose_base_in_world,
@@ -437,7 +431,7 @@ class MainProcess(RosNode):
                     "latest_main_node",
                 )
 
-            # 3. publish the label image overlay on vis_node, very slow so commented
+            # 2. publish the label image overlay on vis_node, very slow so commented
             # self.visualize_self_supervision_label_image_overlay()
 
             self.system_events["camera_callback_state"] = {
@@ -572,20 +566,13 @@ class MainProcess(RosNode):
 
             step_time = ts
 
-            # save model every 10 steps, comment for paper video
-            # if i % 10 == 0:
-            #     if self.param.general.online_training:
-            #         self.manager.save_ckpt(
-            #             self.param.general.model_path,
-            #             f"checkpoint_{self.manager.step}.pt",
-            #         )
-            # update real-time pred once
-            # self.pub_node_prediction(self.manager._vis_main_node)
-            linodes = self.manager._main_graph.get_valid_nodes()
-            if len(linodes) > 0:
-                header = Header()
-                header.stamp = rospy.Time.from_sec(step_time)
-                self.pub_node_prediction(linodes[0], header=header, ts=step_time)
+            # ----- visualization -----
+            # 1. publish the masked dense prediction, using the img in the _vis_main_node
+            header = Header()
+            header.stamp = rospy.Time.from_sec(step_time)
+            self.pub_node_prediction(
+                self.manager._vis_main_node, header=header, ts=step_time
+            )
 
             i += 1
 

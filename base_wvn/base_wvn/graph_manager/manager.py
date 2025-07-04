@@ -60,7 +60,8 @@ class Manager:
             self._main_graph = BaseGraph(edge_distance=self._edge_dist_thr_main_graph)
         else:
             self._main_graph = MaxElementsGraph(
-                edge_distance=self._edge_dist_thr_main_graph, max_elements=20
+                edge_distance=self._edge_dist_thr_main_graph,
+                max_elements=self._param.graph.max_node_number,
             )
 
         # Visualization node
