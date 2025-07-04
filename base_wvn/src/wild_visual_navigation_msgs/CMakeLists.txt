@@ -17,7 +17,6 @@ find_package(catkin REQUIRED COMPONENTS
 
 add_message_files(
   FILES
-  SystemState.msg
   PlaneEdge.msg
   PhyDecoderOutput.msg
   ChannelInfo.msg

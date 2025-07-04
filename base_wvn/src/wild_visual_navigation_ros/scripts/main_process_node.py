@@ -26,7 +26,7 @@ from nav_msgs.msg import Path, Odometry
 from wild_visual_navigation_msgs.msg import AnymalState
 from geometry_msgs.msg import PoseStamped, TransformStamped
 from visualization_msgs.msg import Marker
-from wild_visual_navigation_msgs.msg import SystemState, PhyDecoderOutput, ChannelInfo
+from wild_visual_navigation_msgs.msg import PhyDecoderOutput, ChannelInfo
 from ros_node import RosNode
 import os
 import rospy
@@ -161,7 +161,6 @@ class MainProcess(RosNode):
                 continue
             self.last_status_ts = ts
 
-            t = rospy.get_time()
             x = PrettyTable()
             x.field_names = ["Key", "Value"]
             with self.log_data["Lock"]:  # Acquire the lock
@@ -169,7 +168,7 @@ class MainProcess(RosNode):
                     if "Lock" in k:
                         continue
                     if "time" in k:
-                        d = t - v
+                        d = ts - v
                         if d < 0:
                             c = "red"
                         if d < 0.2:
@@ -279,7 +278,6 @@ class MainProcess(RosNode):
         self.camera_br = tf2_ros.TransformBroadcaster()
 
         # Results publisher
-        input_pub = rospy.Publisher("/vd_pipeline/image_input", Image, queue_size=10)
         fric_pub = rospy.Publisher("/vd_pipeline/friction", Image, queue_size=10)
         stiff_pub = rospy.Publisher("/vd_pipeline/stiffness", Image, queue_size=10)
         info_pub = rospy.Publisher(
@@ -295,17 +293,12 @@ class MainProcess(RosNode):
         latest_sub_node = rospy.Publisher(
             "/vd_pipeline/latest_sub_node", Marker, queue_size=10
         )
-        system_state_pub = rospy.Publisher(
-            "/vd_pipeline/system_state", SystemState, queue_size=10
-        )
 
         # Fill in handler
-        self.camera_handler["input_pub"] = input_pub
         self.camera_handler["fric_pub"] = fric_pub
         self.camera_handler["stiff_pub"] = stiff_pub
         self.camera_handler["info_pub"] = info_pub
         self.camera_handler["channel_pub"] = channel_pub
-        self.camera_handler["system_state_pub"] = system_state_pub
         self.camera_handler["latest_main_node"] = latest_main_node
         self.camera_handler["latest_sub_node"] = latest_sub_node
 
@@ -430,7 +423,10 @@ class MainProcess(RosNode):
 
             # ----- visualization -----
             # 1. publish the masked dense prediction from the latest img received, it is slow by publishing images
-            self.pub_node_prediction(main_node, ts, img_msg.header)
+            # linodes = self.manager._main_graph.get_valid_nodes()
+            # if len(linodes) > 0:
+            #     self.pub_node_prediction(linodes[0], ts, img_msg.header)
+            # self.pub_node_prediction(main_node, ts, img_msg.header)
 
             # 2. publish a green cube marker where the latest main node is
             if self.param.logger.vis_new_node and added_new_node:
@@ -570,28 +566,19 @@ class MainProcess(RosNode):
 
             if not self.param.general.online_training:
                 self.manager.pause_learning = True
-            res = self.manager.train()
+            self.manager.train()
 
             self.log("training_step", self.manager.step)
 
             step_time = ts
-            step = self.manager.step
-            # Publish loss
-            system_state = SystemState()
-            for k in res.keys():
-                if hasattr(system_state, k):
-                    setattr(system_state, k, res[k])
-            system_state.pause_learning = self.manager.pause_learning
-            system_state.mode = self.mode
-            system_state.step = step
-            system_state.header.stamp = rospy.Time.from_sec(step_time)
-            self.camera_handler["system_state_pub"].publish(system_state)
+
             # save model every 10 steps, comment for paper video
             # if i % 10 == 0:
-            # if self.param.general.online_training:
-            #     self.manager.save_ckpt(
-            #         self.param.general.model_path, f"checkpoint_{step}.pt"
-            #     )
+            #     if self.param.general.online_training:
+            #         self.manager.save_ckpt(
+            #             self.param.general.model_path,
+            #             f"checkpoint_{self.manager.step}.pt",
+            #         )
             # update real-time pred once
             # self.pub_node_prediction(self.manager._vis_main_node)
             linodes = self.manager._main_graph.get_valid_nodes()
