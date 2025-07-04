@@ -6,12 +6,9 @@
 #
 import torch
 import os
-import matplotlib.pyplot as plt
 import datetime
 from base_wvn import WVN_ROOT_DIR
 from base_wvn.offline.helper import (
-    load_one_test_image,
-    calculate_and_save_uncertainty_histogram,
     nodes_mask_generation_and_phy_pred_error_computation,
     SAM_label_mask_generate,
     plot_masks_compare,
@@ -21,7 +18,6 @@ from base_wvn.utils import (
     PhyLoss,
     FeatureExtractor,
     ConfidenceMaskGeneratorFactory,
-    plot_pred_w_overlay,
 )
 from base_wvn.config.wvn_cfg import ParamCollection
 import pytorch_lightning as pl
@@ -36,28 +32,6 @@ class DecoderLightning(pl.LightningModule):
         loss_params = self.params.loss
         self.step = 0
 
-        try:
-            # Attempt to load the image from the 'val' directory
-            self.test_img = load_one_test_image(
-                os.path.join(
-                    WVN_ROOT_DIR,
-                    params.offline.data_folder,
-                    "val",
-                    params.offline.env,
-                    params.offline.image_file,
-                )
-            )
-        except FileNotFoundError:
-            # If the image is not found in the 'val' directory, try the 'train' directory
-            self.test_img = load_one_test_image(
-                os.path.join(
-                    WVN_ROOT_DIR,
-                    params.offline.data_folder,
-                    "train",
-                    params.offline.env,
-                    params.offline.image_file,
-                )
-            )
         self.feat_extractor = FeatureExtractor(self.params)
         self.conf_mask_generator = ConfidenceMaskGeneratorFactory.create(
             mode=params.loss.confidence_mode, device=params.run.device
@@ -88,7 +62,7 @@ class DecoderLightning(pl.LightningModule):
         if self.params.offline.upload_error_stats_in_training:
             # upload the error stats calculated by the err_computer
             # for all recorded nodes of the current model
-            self.err_computer.compte_and_log(self)
+            self.err_computer.compte_and_log(self, log=True)
 
         self.step += 1
         return loss
@@ -101,55 +75,8 @@ class DecoderLightning(pl.LightningModule):
         if len(xs.shape) != 2 or len(ys.shape) != 2:
             raise ValueError("xs and ys must have shape of 2")
         res = self.model(xs)
-        loss, loss_dict = self.loss_fn(
-            (xs, ys), res, step=self.step, update_generator=False
-        )
-        if batch_idx == 0:
-            trans_img, compressed_feat = self.feat_extractor.extract(self.test_img)
-            res = self.conf_mask_generator.get_confidence_masked_prediction_from_img(
-                trans_img=trans_img,
-                compressed_feats=compressed_feat,
-                model=self.model,
-                loss_fn=self.loss_fn,
-            )
-            if self.params.offline.plot_overlay:
-                plot_pred_w_overlay(
-                    data=res,
-                    time=self.time,
-                    step=self.step,
-                    image_name="val_overlay",
-                    param=self.params,
-                    save_local=True,
-                )
+        loss, loss_dict = self.loss_fn((xs, ys), res)
 
-            colored_loss_mask = calculate_and_save_uncertainty_histogram(
-                res.loss_reco,
-                res.conf_mask,
-                all_reproj_masks=None,
-                save_path=os.path.join(
-                    WVN_ROOT_DIR,
-                    self.params.offline.ckpt_parent_folder,
-                    self.time,
-                    "hist",
-                    f"step_{self.step}_uncertainty_histogram.png",
-                ),
-                colormap=self.params.offline.hist_colormap,
-            )
-            alpha = self.params.offline.colored_mask_alpha
-            overlay_img = (
-                self.test_img.squeeze(0).permute(1, 2, 0).cpu().numpy() * (1 - alpha)
-                + colored_loss_mask * alpha
-            )
-            plt.imsave(
-                os.path.join(
-                    WVN_ROOT_DIR,
-                    self.params.offline.ckpt_parent_folder,
-                    self.time,
-                    "hist",
-                    f"trainstep_{self.step}_overlay.png",
-                ),
-                overlay_img,
-            )
         self.log("val_loss", loss)
         self.log("reco_loss", loss_dict["loss_reco"])
         self.log("phy_loss", loss_dict["loss_pred"])
@@ -224,7 +151,7 @@ class MaskedPredErrorComputer:
         ori_imgs = output_dict["ori_imgs"]
         fric_mean, fric_std = output_dict["loss_fric_mean+std"]
         stiffness_mean, stiffness_std = output_dict["loss_stiff_mean+std"]
-        conf_masks = conf_masks.to(self.param.run.device)
+        conf_masks = conf_masks.to(self.param.run.device).unsqueeze(1)
         ori_imgs = ori_imgs.to(self.param.run.device)
         print("conf_masks shape:{}".format(conf_masks.shape))
 

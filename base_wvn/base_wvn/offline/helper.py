@@ -42,24 +42,6 @@ def load_data(file: str) -> torch.Tensor:
     return data
 
 
-def load_one_test_image(path: str) -> torch.Tensor:
-    """return img in shape (B,C,H,W)"""
-    image_path = path
-    if path.lower().endswith(".pt"):
-        is_pt_file = True
-    else:
-        is_pt_file = False
-    if not is_pt_file:
-        np_img = cv2.imread(image_path)
-        img = torch.from_numpy(cv2.cvtColor(np_img, cv2.COLOR_BGR2RGB))
-        img = img.permute(2, 0, 1)
-        img = (img.type(torch.float32) / 255)[None]
-    else:
-        imgs = torch.load(image_path)
-        time, img = next(iter(imgs.items()))
-    return img
-
-
 def load_all_test_images(folder: str) -> Dict[str, torch.Tensor]:
     """Load all images from a folder and return them"""
     if "manager" in folder:
@@ -343,12 +325,7 @@ def nodes_mask_generation_and_phy_pred_error_computation(
     )
     for i, node in enumerate(nodes):
         img = node.image.to(param.run.device)
-        reproj_mask = (
-            node.supervision_signal_valid[0]
-            .unsqueeze(0)
-            .unsqueeze(0)
-            .to(param.run.device)
-        )
+        reproj_mask = node.supervision_signal_valid[0].to(param.run.device)
         reproj_masks.append(reproj_mask)
         ori_imgs.append(img)
         trans_img, compressed_feat = model.feat_extractor.extract(img)
@@ -400,10 +377,10 @@ def nodes_mask_generation_and_phy_pred_error_computation(
         losses.append(loss_reco)
         torch.cuda.empty_cache()
 
-    all_reproj_masks = torch.cat(reproj_masks, dim=0)
+    all_reproj_masks = torch.stack(reproj_masks, dim=0)
     torch.cuda.empty_cache()
-    all_losses = torch.cat(losses, dim=0)
-    all_conf_masks = torch.cat(conf_masks, dim=0)
+    all_losses = torch.stack(losses, dim=0)
+    all_conf_masks = torch.stack(conf_masks, dim=0)
     if param.offline.plot_hist:
         calculate_and_save_uncertainty_histogram(
             all_losses,
@@ -420,6 +397,7 @@ def nodes_mask_generation_and_phy_pred_error_computation(
     stiff_std = torch.std(all_stiff_losses)
 
     # Save the Results to a Text File
+    os.makedirs(folder_path, exist_ok=True)
     file_path = os.path.join(folder_path, "overall_pred_loss_statistics.txt")
     with open(file_path, "a") as file:
         file.write(f"{param.general.name}\n")
@@ -707,6 +685,10 @@ def masks_iou_stats(
 ) -> Dict[str, float]:
     """
     Calculates the Intersection over Union (IoU) metric for each predicted mask against the ground truth.
+
+    Args:
+        gt_masks (torch.Tensor): Ground truth masks in shape (B, 1, H, W).
+        pred_masks (torch.Tensor): Predicted masks in shape (B, 1, H, W).
     """
     # Ensure the masks are binary (0 or 1).
     gt_masks = gt_masks.int()

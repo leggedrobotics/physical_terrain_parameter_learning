@@ -21,10 +21,10 @@ from base_wvn.graph_manager import Manager, MainNode, SubNode
 import ros_converter as rc
 import message_filters
 from sensor_msgs.msg import Image, CameraInfo, CompressedImage
-from std_msgs.msg import ColorRGBA, Float32, Header
-from nav_msgs.msg import Path, Odometry
+from std_msgs.msg import ColorRGBA, Header
+from nav_msgs.msg import Odometry
 from wild_visual_navigation_msgs.msg import AnymalState
-from geometry_msgs.msg import PoseStamped, TransformStamped
+from geometry_msgs.msg import TransformStamped
 from visualization_msgs.msg import Marker
 from wild_visual_navigation_msgs.msg import PhyDecoderOutput, ChannelInfo
 from ros_node import RosNode
@@ -150,7 +150,7 @@ class MainProcess(RosNode):
             ts = rospy.get_time()
             self.status_thread_stop_event.wait(timeout=0.01)
             if self.status_thread_stop_event.is_set():
-                rospy.logwarn("Stopped learning thread")
+                rospy.logwarn("Stopped status thread")
                 break
             if self.is_bad_rate_with_log(
                 ts,
