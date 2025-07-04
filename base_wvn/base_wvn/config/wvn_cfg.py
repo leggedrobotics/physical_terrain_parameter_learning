@@ -136,8 +136,6 @@ class ParamCollection(Serializable):
         device: str = "cuda"
         mode: str = "debug"
         palette: str = "husl"
-        print_time: bool = True
-        pass
 
     run: RunParams = RunParams()
 

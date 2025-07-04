@@ -70,7 +70,6 @@ class RosNode:
         self.device = self.param.run.device
         self.mode = self.param.run.mode
         self.palette = self.param.run.palette
-        self.print_time = self.param.run.print_time
 
         # Feature extractor parameters
         self.feature_type = self.param.feat.feature_type

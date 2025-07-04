@@ -30,7 +30,6 @@ from wild_visual_navigation_msgs.msg import SystemState, PhyDecoderOutput, Chann
 from ros_node import RosNode
 import os
 import rospy
-import time
 from cv_bridge import CvBridge
 import torch
 import numpy as np
@@ -57,6 +56,8 @@ class MainProcess(RosNode):
         self.start_time = rospy.get_time()
         self.last_image_ts = self.start_time
         self.last_supervision_ts = self.start_time
+        self.last_learning_ts = self.start_time
+        self.last_status_ts = self.start_time
         self.image_buffer = {}
         self.last_image_saved_ts = self.start_time
         self.today = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -146,10 +147,19 @@ class MainProcess(RosNode):
     def status_thread_loop(self) -> None:
         # Log loop
         while self.run_status_thread:
+            ts = rospy.get_time()
             self.status_thread_stop_event.wait(timeout=0.01)
             if self.status_thread_stop_event.is_set():
                 rospy.logwarn("Stopped learning thread")
                 break
+            if self.is_bad_rate_with_log(
+                ts,
+                self.last_status_ts,
+                self.logging_thread_rate,
+                "status_thread",
+            ):
+                continue
+            self.last_status_ts = ts
 
             t = rospy.get_time()
             x = PrettyTable()
@@ -173,7 +183,6 @@ class MainProcess(RosNode):
                         x.add_row([k, v])
 
             print(x)
-            time.sleep(0.1)
 
         self.status_thread_stop_event.clear()
 
@@ -543,6 +552,20 @@ class MainProcess(RosNode):
             if self.learning_thread_stop_event.is_set():
                 rospy.logwarn("Stopped learning thread")
                 break
+            ts = rospy.get_time()
+            if self.is_bad_rate_with_log(
+                ts,
+                self.last_learning_ts,
+                self.learning_thread_rate,
+                "learning_thread",
+            ):
+                self.system_events["learning_thread_iteration_cancelled"] = {
+                    "time": rospy.get_time(),
+                    "value": "cancelled due to rate",
+                }
+                continue
+            self.last_learning_ts = ts
+
             self.log("learning_thread_step", i)
 
             if not self.param.general.online_training:
@@ -551,7 +574,7 @@ class MainProcess(RosNode):
 
             self.log("training_step", self.manager.step)
 
-            step_time = rospy.get_time()
+            step_time = ts
             step = self.manager.step
             # Publish loss
             system_state = SystemState()
@@ -564,21 +587,20 @@ class MainProcess(RosNode):
             system_state.header.stamp = rospy.Time.from_sec(step_time)
             self.camera_handler["system_state_pub"].publish(system_state)
             # save model every 10 steps, comment for paper video
-            # if i % 10== 0:
-            #     if self.param.general.online_training:
-            #         self.manager.save_ckpt(self.param.general.model_path,f"checkpoint_{step}.pt")
-            #     # update real-time pred once
-            #     # self.pub_node_prediction(self.manager._vis_main_node)
-            #     linodes=self.manager._main_graph.get_valid_nodes()
-            #     if len(linodes)>0:
-            #         self.pub_node_prediction(linodes[0])
-            # linodes = self.manager._main_graph.get_valid_nodes()
-            # if len(linodes) > 0:
-            #     self.pub_node_prediction(linodes[0], step_time)
-            # or plot the latest node
-            # self.pub_node_prediction(main_node)
+            # if i % 10 == 0:
+            # if self.param.general.online_training:
+            #     self.manager.save_ckpt(
+            #         self.param.general.model_path, f"checkpoint_{step}.pt"
+            #     )
+            # update real-time pred once
+            # self.pub_node_prediction(self.manager._vis_main_node)
+            linodes = self.manager._main_graph.get_valid_nodes()
+            if len(linodes) > 0:
+                header = Header()
+                header.stamp = rospy.Time.from_sec(step_time)
+                self.pub_node_prediction(linodes[0], header=header, ts=step_time)
+
             i += 1
-            time.sleep(1 / self.param.thread.learning_rate)
 
         self.system_events["learning_thread_loop"] = {
             "time": rospy.get_time(),
