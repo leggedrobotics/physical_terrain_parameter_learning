@@ -84,11 +84,11 @@ class MainProcess(RosNode):
             enabled=self.param.general.timestamp,
         )
 
+        self.log_data = {}
+        self.log_data["Lock"] = Lock()
         if self.verbose:
-            self.log_data = {}
             self.status_thread_stop_event = Event()
             self.status_thread = Thread(target=self.status_thread_loop, name="status")
-            self.log_data["Lock"] = Lock()
             self.run_status_thread = True
             self.status_thread.start()
 
@@ -109,9 +109,10 @@ class MainProcess(RosNode):
         print("Main process node initialized!")
 
     def shutdown_callback(self, *args, **kwargs) -> None:
-        self.run_status_thread = False
-        self.status_thread_stop_event.set()
-        self.status_thread.join()
+        if self.verbose:
+            self.run_status_thread = False
+            self.status_thread_stop_event.set()
+            self.status_thread.join()
         self.visualize_self_supervision_label_image_overlay()
         if self.param.general.timestamp:
             print(self.timer)
@@ -301,9 +302,8 @@ class MainProcess(RosNode):
 
     def log(self, entry: str, msg: str) -> None:
         """Grab the lock and log the message in verbose mode."""
-        if self.verbose:
-            with self.log_data["Lock"]:
-                self.log_data[entry] = msg
+        with self.log_data["Lock"]:
+            self.log_data[entry] = msg
 
     def is_bad_rate_with_log(
         self,
@@ -406,9 +406,7 @@ class MainProcess(RosNode):
             )
 
             # add to main graph
-            added_new_node = self.manager.add_main_node(
-                main_node, verbose=self.verbose, logger=self.log_data
-            )
+            added_new_node = self.manager.add_main_node(main_node, logger=self.log_data)
 
             if (
                 self.manager.distance_between_last_main_node_and_last_sub_node

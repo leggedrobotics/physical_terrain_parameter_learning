@@ -79,9 +79,18 @@ class Manager:
         seed_everything(42)
         self._model = get_model(model_params).to(self._device)
         self._model.train()
-        self._optimizer = torch.optim.Adam(
-            self._model.parameters(), lr=self._lr, weight_decay=self._wd
-        )
+        if param.optimizer.name.lower() == "adam":
+            self._optimizer = torch.optim.Adam(
+                self._model.parameters(), lr=self._lr, weight_decay=self._wd
+            )
+        elif param.optimizer.name.lower() == "sgd":
+            self._optimizer = torch.optim.SGD(
+                self._model.parameters(), lr=self._lr, weight_decay=self._wd
+            )
+        else:
+            raise ValueError(
+                f"Unsupported optimizer: {param.optimizer.name}. Supported optimizers: Adam, SGD."
+            )
         self._phy_loss = PhyLoss(
             w_pred=loss_params.w_pred,
             w_reco=loss_params.w_reco,
@@ -158,7 +167,7 @@ class Manager:
             )
 
     @accumulate_time
-    def add_main_node(self, node: MainNode, verbose: bool = False, logger=None):
+    def add_main_node(self, node: MainNode, logger: dict):
         """
         Add new node to the main graph with img and supervision info
         supervision mask has self._phy_dim channels e.g. (2,H,W)
@@ -169,14 +178,8 @@ class Manager:
         if success:
             # Print some info
             total_nodes = self._main_graph.get_num_nodes()
-            if logger is None:
-                s = f"adding node [{node}], "
-                s += " " * (48 - len(s)) + f"total nodes [{total_nodes}]"
-                if verbose:
-                    print(s)
-            else:
-                with logger["Lock"]:
-                    logger["total main nodes"] = f"{total_nodes}"
+            with logger["Lock"]:
+                logger["total main nodes"] = f"{total_nodes}"
 
             # Init the supervision mask
             H, W = node.image.shape[-2], node.image.shape[-1]
