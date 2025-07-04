@@ -124,8 +124,8 @@ class ParamCollection(Serializable):
 
         camera_callback_rate: float = 1.0
         supervision_signal_callback_rate: float = 4.0
-        learning_rate: float = 2
-        logging_rate: float = 0.5
+        learning_rate: float = 2.0
+        logging_rate: float = 1.0
 
     thread: ThreadParams = ThreadParams()
 
@@ -209,11 +209,13 @@ class ParamCollection(Serializable):
         class SimpleMlpCfgParams:
             input_size: int = 384  # 384 is embedding dim from dinov2-small
             # hidden_sizes: List[int] = field(default_factory=lambda: [32, 8, 32, 2])  # S
-            # hidden_sizes: List[int] = field(default_factory=lambda: [128, 32, 128, 2])   # M
-            # hidden_sizes: List[int] = field(default_factory=lambda: [512, 128, 512, 2])
             hidden_sizes: List[int] = field(
-                default_factory=lambda: [1024, 512, 256, 512, 1024, 2]
-            )  # L
+                default_factory=lambda: [128, 32, 128, 2]
+            )  # M
+            # hidden_sizes: List[int] = field(default_factory=lambda: [512, 128, 512, 2])
+            # hidden_sizes: List[int] = field(
+            #     default_factory=lambda: [1024, 512, 256, 512, 1024, 2]
+            # )  # L
             # hidden_sizes: List[int] = field(default_factory=lambda: [4096,2048,1024, 512, 1024,2048,4096, 2]) # XL
             reconstruction: bool = True
 
