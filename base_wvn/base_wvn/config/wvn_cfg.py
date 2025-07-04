@@ -170,8 +170,8 @@ class ParamCollection(Serializable):
 
     @dataclass
     class LossParams:
-        w_pred: float = 0.1  # 0.1
-        w_reco: float = 0.9  # 0.9
+        w_pred: float = 0.9  # 0.1
+        w_reco: float = 0.1  # 0.9
         reco_loss_type: str = "mse"  # mse or cosine
 
         confidence_mode: str = "gmm_1d"  # gmm_1d, or fixed
@@ -202,7 +202,7 @@ class ParamCollection(Serializable):
 
     @dataclass
     class ModelParams:
-        name: str = "SimpleMLP"
+        name: str = "SeperateMLP"
         load_ckpt: Optional[str] = None
 
         @dataclass
@@ -223,6 +223,16 @@ class ParamCollection(Serializable):
                 return vars(self)
 
         simple_mlp_cfg: SimpleMlpCfgParams = SimpleMlpCfgParams()
+
+        @dataclass
+        class SeperateMLPCfgParams:
+            input_size: int = 384
+            hidden_sizes: List[int] = field(default_factory=lambda: [128, 32, 128, 2])
+
+            def to_dict(self):
+                return vars(self)
+
+        seperate_mlp_cfg: SeperateMLPCfgParams = SeperateMLPCfgParams()
 
     model: ModelParams = ModelParams()
 
