@@ -20,12 +20,13 @@ from .graphs import (
 from .nodes import MainNode, SubNode
 from ..utils import ImageProjector, PhyLoss
 from ..model import VD_dataset, get_model
+from ..config.wvn_cfg import ParamCollection
 
 to_tensor = transforms.ToTensor()
 
 
 class Manager:
-    def __init__(self, device: str = "cuda", param=None, **kwargs):
+    def __init__(self, device: str = "cuda", param: ParamCollection = None):
         self._param = param
         graph_params = param.graph
         loss_params = param.loss

@@ -28,7 +28,6 @@ class ParamCollection(Serializable):
         online_training: bool = True
         resume_training: bool = False
         resume_training_path: str = "model/last_checkpoint.pt"
-        plot_overlay_online: bool = True
         model_path: str = "model"
         pub_pred_as_layer: str = "RGB"  # single or RGB
         pub_which_pred: str = "fric"  # fric or stiff
@@ -175,11 +174,9 @@ class ParamCollection(Serializable):
     class LossParams:
         w_pred: float = 0.1  # 0.1
         w_reco: float = 0.9  # 0.9
-        method: str = "running_mean"
-        confidence_threshold: float = 0.5  # only for "fixed" confidence mode
-        confidence_mode: str = "gmm_1d"  # gmm_1d, or fixed
-
         reco_loss_type: str = "mse"  # mse or cosine
+
+        confidence_mode: str = "gmm_1d"  # gmm_1d, or fixed
 
     loss: LossParams = LossParams()
 

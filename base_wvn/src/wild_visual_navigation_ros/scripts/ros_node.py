@@ -78,9 +78,6 @@ class RosNode:
         self.interp = self.param.feat.interp
         self.center_crop = self.param.feat.center_crop
 
-        # Loss parameters
-        self.method = self.param.loss.method
-
         self.verbose = self.param.general.verbose
 
         if "v4l2" in self.camera_topic:

@@ -592,8 +592,8 @@ class MainProcess(RosNode):
     def pub_node_prediction(
         self,
         node: MainNode,
-        ts: Optional[float] = None,
-        header: Optional[Header] = None,
+        ts: Optional[float],
+        header: Optional[Header],
     ) -> None:
         if not hasattr(node, "image") or node.image is None:
             return
