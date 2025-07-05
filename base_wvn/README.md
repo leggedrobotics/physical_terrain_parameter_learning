@@ -19,7 +19,7 @@ pip install -r requirements.txt
 ```
 If you encounter any errors, please follow the error message to install the missing dependencies.
 
-**Attention**: As a prerequest you need to pip install the [Stand-alone pre-trained physical decoder](phy_decoder/README.md). The physical decoders compatible in the vision pipeline is trained using an old version of the physical decoder training repo (different from folder physical_decoder_training). So to avoid inconvenience we already provide trained decoders in package phy_decoder that will load its weights automatically upon running in the vision pipeline. Also install the package from https://github.com/utiasSTARS/liegroups.git and https://github.com/facebookresearch/segment-anything.git. Please also put [ros-comm](https://github.com/leggedrobotics/ros_comm) under src folder to avoid ros comm bugs during real-time running.
+**Attention**: As a prerequest you need to pip install the [Stand-alone pre-trained physical decoder](phy_decoder/README.md). Also install the package from https://github.com/utiasSTARS/liegroups.git and https://github.com/facebookresearch/segment-anything.git. Please also put [ros-comm](https://github.com/leggedrobotics/ros_comm) under src folder to avoid ros comm bugs during real-time running. You need to sudo apt install `tmux`.
 
 Set you neptune API token, username, and project name in the system file `.bashrc`:
 ```bash
@@ -39,20 +39,35 @@ catkin build wild_visual_navigation_ros
 source devel/setup.bash
 ```
 
-## Vision pipeline - offline training
-All configs are set in `base_wvn/config/wvn_config.py`, for all the training/testing, you should pay attention to path-related settings.
 
+## Vision pipeline - online training
+All configs are set in [base_wvn/config/wvn_cfg.py](base_wvn/config/wvn_cfg.py), for all the training/testing, you should pay attention to path-related settings.
+
+### Running
+For different configs, please refer to the code and config file.
+```bash
+./src/wild_visual_navigation_ros/scripts/play_base_wvn.sh  # start all base_wvn nodes
+```
+
+### Tmux usage
+`Ctrl+B` then press `arrow keys` to switch between panels in the cli and use `Ctrl+C` to stop. To kill the tmux session, press your prefix (e.g. `Ctrl+A` or `B`, which is the default) and then `:` and type `kill-session`, then hit `Enter`.
+
+## Vision pipeline - offline training
 Download segment_anything model checkpoint from [here](https://drive.google.com/file/d/1TU3asknvo1UKdhx0z50ghHDt1C_McKJu/view?usp=drive_link) and speicify the path in the config file.
 ### Offline Dataset
-It is generated from the online rosbag playing. By setting `label_ext_mode: bool=True` you can record the dataset. The corresponding settings and paths are in config file. You need to sudo apt install `tmux` first. Please change the paths in the `play_base_wvn.sh` file to your own paths.
+It is generated from the online rosbag playing. By setting `label_ext_mode: bool=True` you can record the dataset. The corresponding settings and paths are in config file.  Please change the paths in the `play_base_wvn.sh` file to your own paths.
 
 You need to make sure the rosbag path is set to your own ones in `play_rosbag.sh` before executing the following.
 ```bash
 roslaunch wild_visual_navigation_ros play.launch # start rosbag playing
 ./src/wild_visual_navigation_ros/scripts/play_base_wvn.sh  # start all base_wvn nodes
-```
-`Ctrl+B` then press `arrow keys` to switch between panels in the cli and use `Ctrl+C` to stop/finish the recording. To kill the tmux session, press your prefix (e.g. `Ctrl+A` or `B`, which is the default) and then `:` and type `kill-session`, then hit `Enter`.
 
+# Follow Tmux usage and use `Ctrl+C` to stop the recording.
+```
+### Tmux usage
+`Ctrl+C` in the **left-most** panel will also finish the recording.
+
+### Dataset structure
 The default saving path is `~/base_wvn/results/manager` with the following files:
 
 - `image_buffer.pt`: only store all the camera image tensors of the main nodes
@@ -75,16 +90,10 @@ You can use the `base_wvn/offline/seg_correction.py` to correct the masks. The d
 ### Running
 For offline training/testing, you can switch the config and run the following command:
 ```bash
-python base_wvn/offline/offline_training_lightning.py
+python base_wvn/offline/train_eval.py
 ```
 
-## Vision pipeline - online training
 
-### Running
-For different configs, please refer to the code and config file.
-```bash
-./src/wild_visual_navigation_ros/scripts/play_base_wvn.sh  # start all base_wvn nodes
-```
 
 ## Acknowledgements
 
