@@ -39,9 +39,23 @@ catkin build wild_visual_navigation_ros
 source devel/setup.bash
 ```
 
+## General configuration
+All configs are set in [base_wvn/config/wvn_cfg.py](base_wvn/config/wvn_cfg.py), for all the training/testing, you should pay attention to path-related settings. Some important parameters are listed below:
 
-## Vision pipeline - online training
-All configs are set in [base_wvn/config/wvn_cfg.py](base_wvn/config/wvn_cfg.py), for all the training/testing, you should pay attention to path-related settings.
+1. `roscfg.phy_decoder_input_topic`: this is hard-coded topic for Anymal D, do not change it.
+2. `roscfg.camera_topic` and `roscfg.camera_info_topic`: these are the camera topics for the images, you should use the camera pointing along and towards the walking direction. If the camera tf is not provided in config, you need to implement it yourself and update related entry in ros node scripts in [src/wild_visual_navigation_ros/scripts](src/wild_visual_navigation_ros/scripts).
+3. `roscfg.use_vo`: only set to `True` if there is the specific open3d_slam topic, otherwise set to `False`, then it will use the default anymal_state_topic.
+4. `general.pub_which_pred`: set to `fric` will only publish the friction prediction img.
+5. `graph.{}`: graph-related parameters, could require tuning in new scenes, such as `graph.edge_dist_thr_main_graph`, depending on the different scales of the scenes.
+6. `graph.label_ext_mode`: if set to `True`, it will record the online collected data (nodes, training batches) for potential offline training. 
+7. `offline.mode`: set to `train` or `eval` for offline train+eval or eval-only, respectively.
+8. `offline.env`: the environment name, which should match the folder name where the training data is stored, such as `snow` for `base_wvn/results/manager/train/snow`.
+9. `offline.replicate_online_training`: if set to `True`, it will use the recorded data to perform offline model training in the exact order as it will be used during the online training, otherwise it will randomly sample the recorded training data.
+10. `offline.test_on_images/nodes`: if set to `True`, it will test the model on the images or recorded nodes. It should be set together with `offline.plot_hist/nodes/masks_compare` to visualize the prediction results. Please see below for the example visualization.
+11. `offline.test_video`: if set to `True`, it will generate a visual prediction video from the given rosbag in `offline.img_bag_path` containing the desired camera img topic, please see below for the example visualization.
+
+
+## Online training
 
 ### Running
 For different configs, please refer to the code and config file.
@@ -54,9 +68,9 @@ roslaunch wild_visual_navigation_ros play.launch # (Optional) start rosbag playi
 ### Tmux usage
 `Ctrl+B` then press `arrow keys` to switch between panels in the cli and use `Ctrl+C` to stop. To kill the tmux session, press your prefix (e.g. `Ctrl+A` or `B`, which is the default) and then `:` and type `kill-session`, then hit `Enter`.
 
-## Vision pipeline - offline training
+## Offline training
 Download segment_anything model checkpoint from [here](https://drive.google.com/file/d/1TU3asknvo1UKdhx0z50ghHDt1C_McKJu/view?usp=drive_link) and speicify the path in the config file.
-### Offline Dataset
+### Extracting offline dataset
 It is generated from the online rosbag playing. By setting `label_ext_mode: bool=True` you can record the dataset. The corresponding settings and paths are in config file.  Please change the paths in the `play_base_wvn.sh` file to your own paths.
 
 You need to make sure the rosbag path is set to your own ones in `play_rosbag.sh` before executing the following.
@@ -94,6 +108,27 @@ For offline training/testing, you can switch the config and run the following co
 ```bash
 python base_wvn/offline/train_eval.py
 ```
+### Visualization Example
+1. Dense prediction from imgs stored in nodes by setting `param.offline.plot_nodes=True`: 
+<p align="center">
+    <img src="../.docs/dense_pred.png" width="800"/>
+</p>
+
+2. Dense prediction video from the given rosbag in `offline.img_bag_path` by setting `offline.test_video=True`:
+<p align="center">
+    <img src="../.docs/pred_video.gif" alt="Dense prediction video" width="600"/>
+</p>
+
+3. Reconstruction loss / confidence visualization by setting `param.offline.plot_hist=True`:
+<p align="center">
+    <img src="../.docs/loss_hist.png" alt="Recon loss" width="450"/>
+</p>
+
+4. Compare the estimated confidence masks with the GT masks by setting `param.offline.plot_masks_compare=True`:
+<p align="center">
+    <img src="../.docs/mask_comparison.png" alt="Mask comparison" width="600"/>
+</p>
+
 
 
 ## Acknowledgements

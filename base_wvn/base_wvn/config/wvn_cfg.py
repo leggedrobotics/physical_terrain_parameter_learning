@@ -188,7 +188,7 @@ class ParamCollection(Serializable):
         cut_threshold: float = 5.0
         edge_dist_thr_main_graph: float = 0.2  # 0.2
 
-        use_sub_graph: bool = False  # only use when the robot is walking reversely
+        use_sub_graph: bool = False  # only set to True when the robot is walking reversely to the camera direction, should avoid this case
         edge_dist_thr_sub_graph: float = 0.05
         max_distance_sub_graph: float = 5
         update_range_sub_graph: float = 5
@@ -197,8 +197,7 @@ class ParamCollection(Serializable):
         random_sample_num: int = 100
 
         vis_node_index_from_last: int = 10
-        label_ext_mode: bool = False
-        extraction_store_folder: str = "LabelExtraction"
+        label_ext_mode: bool = False  # turn on if want to record the online collected data (nodes, training batches)
 
     graph: GraphParams = GraphParams()
 
@@ -241,9 +240,9 @@ class ParamCollection(Serializable):
 
     @dataclass
     class OfflineParams:
-        mode: str = "train"
-        max_epochs: int = 5
-        env: str = "vowhite_both"  # vowhite_both
+        mode: str = "train"  # or 'eval'
+        max_epochs: int = 1
+        env: str = "white"  # your own defined, please put the data files into this folder first
         reload_model: bool = False
         use_online_ckpt: bool = False
         replicate_online_training: bool = True

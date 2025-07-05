@@ -38,7 +38,6 @@ class Manager:
         self._update_range_main_graph = graph_params.update_range_main_graph
         self._cut_threshold = graph_params.cut_threshold
         self._edge_dist_thr_main_graph = graph_params.edge_dist_thr_main_graph
-        self._extraction_store_folder = graph_params.extraction_store_folder
         self._random_sample_num = graph_params.random_sample_num
         self._phy_dim = param.feat.physical_dim
         self._lr = param.optimizer.lr
