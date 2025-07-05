@@ -26,12 +26,12 @@ to_tensor = transforms.ToTensor()
 
 
 class Manager:
-    def __init__(self, device: str = "cuda", param: ParamCollection = None):
+    def __init__(self, param: ParamCollection = None):
         self._param = param
         graph_params = param.graph
         loss_params = param.loss
         model_params = param.model
-        self._device = device
+        self._device = param.run.device
         self._label_ext_mode = graph_params.label_ext_mode
         self._vis_node_index_from_last = graph_params.vis_node_index_from_last
         self._min_samples_for_training = graph_params.min_samples_for_training

@@ -66,10 +66,7 @@ def train(param: ParamCollection) -> None:
         devices=[0],
         logger=neptune_logger,
         max_epochs=param.offline.max_epochs,
-        max_steps=80,
         log_every_n_steps=1,
-        limit_train_batches=0.5,
-        limit_val_batches=0.5,
     )
     trainer.fit(model, train_loader, val_loader)
     torch.save(

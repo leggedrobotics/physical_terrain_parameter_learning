@@ -57,7 +57,7 @@ class MainProcess(RosNode):
         self.last_image_ts = self.start_time
         self.last_supervision_ts = self.start_time
         self.last_learning_ts = self.start_time
-        self.last_status_ts = self.start_time
+        self.last_logging_ts = self.start_time
         self.image_buffer = {}
         self.last_image_saved_ts = self.start_time
         self.today = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -68,10 +68,7 @@ class MainProcess(RosNode):
         )
 
         # Init graph manager
-        self.manager = Manager(
-            device=self.device,
-            param=self.param,
-        )
+        self.manager = Manager(param=self.param)
 
         # Init Camera handler
         self.camera_handler = {}
@@ -88,10 +85,12 @@ class MainProcess(RosNode):
         self.log_data = {}
         self.log_data["Lock"] = Lock()
         if self.verbose:
-            self.status_thread_stop_event = Event()
-            self.status_thread = Thread(target=self.status_thread_loop, name="status")
-            self.run_status_thread = True
-            self.status_thread.start()
+            self.logging_thread_stop_event = Event()
+            self.logging_thread = Thread(
+                target=self.logging_thread_loop, name="logging"
+            )
+            self.run_logging_thread = True
+            self.logging_thread.start()
 
         # Initialize ROS nodes
         self.ros_init()
@@ -111,9 +110,9 @@ class MainProcess(RosNode):
 
     def shutdown_callback(self, *args, **kwargs) -> None:
         if self.verbose:
-            self.run_status_thread = False
-            self.status_thread_stop_event.set()
-            self.status_thread.join()
+            self.run_logging_thread = False
+            self.logging_thread_stop_event.set()
+            self.logging_thread.join()
         self.visualize_self_supervision_label_image_overlay()
         if self.param.general.timestamp:
             print(self.timer)
@@ -144,22 +143,22 @@ class MainProcess(RosNode):
 
         sys.exit(0)
 
-    def status_thread_loop(self) -> None:
+    def logging_thread_loop(self) -> None:
         # Log loop
-        while self.run_status_thread:
+        while self.run_logging_thread:
             ts = rospy.get_time()
-            self.status_thread_stop_event.wait(timeout=0.01)
-            if self.status_thread_stop_event.is_set():
-                rospy.logwarn("Stopped status thread")
+            self.logging_thread_stop_event.wait(timeout=0.01)
+            if self.logging_thread_stop_event.is_set():
+                rospy.logwarn("Stopped logging thread")
                 break
             if self.is_bad_rate_with_log(
                 ts,
-                self.last_status_ts,
+                self.last_logging_ts,
                 self.logging_thread_rate,
-                "status_thread",
+                "logging_thread",
             ):
                 continue
-            self.last_status_ts = ts
+            self.last_logging_ts = ts
 
             x = PrettyTable()
             x.field_names = ["Key", "Value"]
@@ -183,7 +182,7 @@ class MainProcess(RosNode):
 
             print(x)
 
-        self.status_thread_stop_event.clear()
+        self.logging_thread_stop_event.clear()
 
     def ros_init(self) -> None:
         """
