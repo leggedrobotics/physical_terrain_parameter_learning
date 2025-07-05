@@ -45,7 +45,7 @@ All configs are set in [base_wvn/config/wvn_cfg.py](base_wvn/config/wvn_cfg.py),
 1. `roscfg.phy_decoder_input_topic`: this is hard-coded topic for Anymal D, do not change it.
 2. `roscfg.camera_topic` and `roscfg.camera_info_topic`: these are the camera topics for the images, you should use the camera pointing along and towards the walking direction. If the camera tf is not provided in config, you need to implement it yourself and update related entry in ros node scripts in [src/wild_visual_navigation_ros/scripts](src/wild_visual_navigation_ros/scripts).
 3. `roscfg.use_vo`: only set to `True` if there is the specific open3d_slam topic, otherwise set to `False`, then it will use the default anymal_state_topic.
-4. `general.pub_which_pred`: set to `fric` will only publish the friction prediction img.
+4. `general.pub_which_pred`: set to `fric` will only publish the masked dense friction prediction img, under the topic `/vd_pipeline/friction`, and set to `stiff` will only publish the stiffness prediction img, under the topic `/vd_pipeline/stiffness`.
 5. `graph.{}`: graph-related parameters, could require tuning in new scenes, such as `graph.edge_dist_thr_main_graph`, depending on the different scales of the scenes.
 6. `graph.label_ext_mode`: if set to `True`, it will record the online collected data (nodes, training batches) for potential offline training. 
 7. `offline.mode`: set to `train` or `eval` for offline train+eval or eval-only, respectively.

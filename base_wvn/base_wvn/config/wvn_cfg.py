@@ -30,7 +30,7 @@ class ParamCollection(Serializable):
         resume_training_path: str = "model/last_checkpoint.pt"
         model_path: str = "model"
         pub_pred_as_layer: str = "RGB"  # single or RGB
-        pub_which_pred: str = "fric"  # fric or stiff
+        pub_which_pred: str = "fric"  # fric or stiff, publish dense prediction under topic name /vd_pipeline/friction or /vd_pipeline/stiffness
         verbose: bool = True
 
     general: GeneralParams = GeneralParams()
