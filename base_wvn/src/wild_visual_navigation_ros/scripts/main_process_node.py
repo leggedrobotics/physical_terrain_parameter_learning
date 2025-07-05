@@ -58,7 +58,6 @@ class MainProcess(RosNode):
         self.last_supervision_ts = self.start_time
         self.last_learning_ts = self.start_time
         self.last_logging_ts = self.start_time
-        self.image_buffer = {}
         self.last_image_saved_ts = self.start_time
         self.today = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
@@ -124,10 +123,6 @@ class MainProcess(RosNode):
             self.learning_thread.join()
         if self.manager._label_ext_mode:
             self.manager.save(self.param.offline.data_folder, "train")
-            image_buffer_path = os.path.join(
-                self.param.offline.data_folder, self.param.offline.image_file
-            )
-            torch.save(self.image_buffer, image_buffer_path)
         rospy.signal_shutdown(f"FeatExtractor Node killed {args}")
 
         print("Storing learned checkpoint...", end="")
@@ -389,7 +384,6 @@ class MainProcess(RosNode):
 
             if self.manager._label_ext_mode:
                 if abs(ts - self.last_image_saved_ts) > 10.0:
-                    self.image_buffer[ts] = transformed_img
                     self.last_image_saved_ts = ts
                     self.log("time_last_image", rospy.get_time())
                     self.log("num_images", self.log_data["num_images"] + 1)
