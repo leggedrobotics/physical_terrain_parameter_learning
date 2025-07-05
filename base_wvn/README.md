@@ -47,6 +47,8 @@ All configs are set in [base_wvn/config/wvn_cfg.py](base_wvn/config/wvn_cfg.py),
 For different configs, please refer to the code and config file.
 ```bash
 ./src/wild_visual_navigation_ros/scripts/play_base_wvn.sh  # start all base_wvn nodes
+
+roslaunch wild_visual_navigation_ros play.launch # (Optional) start rosbag playing, you can train online with rosbag playing, but you need to make sure the rosbag path is set to your own ones in `play_rosbag.sh` 
 ```
 
 ### Tmux usage
@@ -59,8 +61,9 @@ It is generated from the online rosbag playing. By setting `label_ext_mode: bool
 
 You need to make sure the rosbag path is set to your own ones in `play_rosbag.sh` before executing the following.
 ```bash
-roslaunch wild_visual_navigation_ros play.launch # start rosbag playing
 ./src/wild_visual_navigation_ros/scripts/play_base_wvn.sh  # start all base_wvn nodes
+
+roslaunch wild_visual_navigation_ros play.launch # start rosbag playing
 
 # Follow Tmux usage and use `Ctrl+C` to stop the recording.
 ```
@@ -69,8 +72,6 @@ roslaunch wild_visual_navigation_ros play.launch # start rosbag playing
 
 ### Dataset structure
 The default saving path is `~/base_wvn/results/manager` with the following files:
-
-- `image_buffer.pt`: only store all the camera image tensors of the main nodes
 
 - `train_data.pt`: only store the training data pairs, which are the same for online training
 
@@ -81,7 +82,8 @@ After running offline training for the first time, you will get additional files
 - `gt_masks_SAM.pt`: all the automatically generated GT masks from SAM
 - `mask_img.pt`: the corresponding color image of the GT masks above
   
-You can put the above files into seperate folders, like `~/base_wvn/results/manager/train/snow`
+You need to put the above files into a seperate folder, specifying `train` or `val` and followed by the env name, like `~/base_wvn/results/manager/train/snow`. The env name should match the one in the config file. 
+
 
 ### Manual correction of GT masks
 Beacause the automatically generated GT masks (from SAM) are not perfect, we need to manually correct them with segments.ai . 
@@ -92,7 +94,6 @@ For offline training/testing, you can switch the config and run the following co
 ```bash
 python base_wvn/offline/train_eval.py
 ```
-
 
 
 ## Acknowledgements
