@@ -120,7 +120,8 @@ class BaseGraph:
 
     def get_num_valid_nodes(self):
         with self._lock:
-            return sum([n.is_valid() for n in self._graph.nodes])
+            res = sum([n.is_valid() for n in self._graph.nodes])
+        return int(res)
 
     def get_num_edges(self):
         with self._lock:

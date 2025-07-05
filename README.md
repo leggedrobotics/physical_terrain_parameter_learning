@@ -1,12 +1,12 @@
 # Physical Terrain Parameters Learning
 
-[View the Framework Overview (PDF)](.docs/header_figure.pdf)
+![Framework Overview](.docs/header_figure.jpg)
 
 This repository accompanies the paper "Identifying Terrain Physical Parameters from Vision - Towards Physical-Parameter-Aware Locomotion and Navigation". Check project website [here](https://bit.ly/3Xo5AA8)
 
 The repo mainly contains three parts: 
 1. Stand-alone pre-trained physical decoder
-2. Physical decoder training
+2. Physical decoder training module
 3. Self-supervised visual decoder learning
 
 
@@ -24,77 +24,64 @@ If this code supports your research, please consider citing the following work. 
   volume={9},
   number={11},
   pages={9279-9286},
-  keywords={Decoding;Friction;Visualization;Training;Robot sensing systems;Navigation;Legged locomotion;Deep learning;Visual perception;Terrain mapping;Legged Robots;deep learning for visual perception;field robots},
   doi={10.1109/LRA.2024.3455788}}
 
 ```
 
-## Stand-alone Pre-trained Physical Decoder (Folder: phy_decoder)
+## Codebase Overview
+![Codebase Overview](.docs/codebase.png)
+
+## 1. Stand-alone Pre-trained Physical Decoder (Folder: [physical_decoder](physical_decoder/))
 You can try out our pre-trained physical decoder as follows:
 
-### Installing
+
+### Installation
 First, clone this repository to your local machine and install the dependencies.
 ```shell
-cd phy_decoder/
+cd physical_decoder/
 
-# Install the dependencies, the listed versions are for compatibility with the visual decoder environment
+# Install the dependencies
 pip install -r requirements.txt
 
 # Install the package
 pip install -e .
 ```
 
-### Explanation & Usage
-This two decoders use sequence data as input and output a physical parameters sequence (friction or stiffness). 
+### Explanation
+This two decoders use sequence data as input and output a physical parameters sequence (friction or stiffness), where we extract the last sequence position as the prediction for the current timestamp. 
 The main architecture is GRU+Self-Attention with a parallel structure.
 The model_pth is automatically loaded from the package folder. 
-Here we showcase how to use the decoders in legged_gym. 
-If you want to deploy it on real robots with ros, please check the `base_wvn` folder for ros usage.
 
-**Attention**: Only env_num=1 is tested now. If you want to use env_num>1, you may need to modify the code a little bit.
+#### ⚠️ Important: Shared Decoder Configuration
+
+> **The file [`physical_decoder/physical_decoder/decoder_config.py`](physical_decoder/physical_decoder/decoder_config.py) is the **single source of truth** for decoder configurations.**
+
+This file is used by **both**:
+- `base_wvn`
+- `physical_decoder_training`
+
+✅ Make sure to **verify and modify configurations here** when changing model behavior for either component.
+
+### Usage
+Below we showcase how to use the decoders during deployment (e.g. in ros), you can also check the `base_wvn` folder for detailed ros usage.
 
 ```python
-from phy_decoder import initialize_models, prepare_padded_input, RNNInputBuffer
+from physical_decoder import DeploymentWrapper
+
 # Initializing
-step = 0
-env_num=1
-
-fric_predictor, stiff_predictor, predictor_cfg = initialize_models()
-
-fric_hidden = fric_predictor.init_hidden(env_num)
-stiff_hidden = stiff_predictor.init_hidden(env_num)
-
-input_buffers = {0: RNNInputBuffer()}
+physical_decoder = DeploymentWrapper()
 
 # Main loop
 while True:
-    step += 1 # Pre-increment to 1 for first step not 0
-    input_data=obs[:,:341] # Input is batch_size (env_num)x341dim(prop. + ext.)
-    padded_inputs = prepare_padded_input(input_data, input_buffers, step, env_num)
-    padded_input = torch.stack(padded_inputs, dim=0) # reshape to env_num x num_timesteps (sequence_len) x 341
-    
-    if predictor_cfg['reset_hidden_each_epoch']:
-        fric_hidden = fric_predictor.init_hidden(env_num)
-        stiff_hidden = stiff_predictor.init_hidden(env_num)
-    
-    with torch.no_grad():
-        # Predict using the friction predictor
-        fric_pred, fric_hidden = fric_predictor.get_unnormalized_recon(padded_input, fric_hidden)           
-        # Predict using the stiffness predictor
-        stiff_pred, stiff_hidden = stiff_predictor.get_unnormalized_recon(padded_input, stiff_hidden)
+    # In deployment, the input data is usually an observation tensor per step with shape (batch_size, feature_dim)
+    fric_pred, stiff_pred = physical_decoder.predict(input_data)
+    # each output prediction is a tensor with shape (batch_size, priv_size = 4 feet)
 
-        # fric_pred, stiff_pred are dimension: env_num x num_timesteps x 4 (number of feet)
-
-    input_buffers[0].add(input_data[0].unsqueeze(0))
-
-# You may use the last step of output sequence as the prediction
-fric_pred=fric_pred[:,-1,:]
-stiff_pred=stiff_pred[:,-1,:]
 ```
 
-## Physical Decoder Training (Folder: physical_decoder_training)
+## 2. Physical Decoder Training (Folder: [physical_decoder_training](physical_decoder_training/))
 
-Install the required packages:
+### Installation
 ```bash
 cd physical_decoder_training
 pip install -r requirements.txt
@@ -106,20 +93,31 @@ export NEPTUNE_API_TOKEN="your_neptune_api_token"
 export NEPTUNE_USERNAME="your_neptune_username"
 export NEPTUNE_PROJECT="your_neptune_username/your_neptune_project_name"
 ```
+### Training & Evaluation
 
-Configure the decoder model settings and other parameters in `physical_decoder_training/training_utils/decoder_config.py`
+1. Configure run parameters in [`physical_decoder_training/training_utils/run_config.py`](physical_decoder_training/training_utils/run_config.py). This includes:
+    - `mode`: Set to 'train' for training+evaluation or 'eval' for evaluation-only.
+    - `train_data_directory`, `val_data_directory`: Specify paths to your training and validation datasets.
+    - `max_epochs`, `batch_size`, etc.: Adjust as needed.
 
-The main training loop happens in `physical_decoder_training/train.py`
+2. Configure the decoder model settings in [`physical_decoder/physical_decoder/decoder_config.py`](physical_decoder/physical_decoder/decoder_config.py). This includes:
+    - `seq_length`: Length of input sequences for RNNs.
+    - `input_type`: Type of selected input features (e.g., 'pro', 'pro+exte', 'all').
+    - `output_type`: Type of output parameter ('fric' for friction or 'stiff' for stiffness).
+    - `device`: Set to 'cuda' for GPU training/inference or 'cpu' for CPU.
+    - model architecture settings like `hidden_size`, etc.
+    
+3. The main training & evaluation loop is in `physical_decoder_training/train_eval.py`
 
-Be advised that the datasets are seperated for friction and stiffness prediction, and the training is also seperated. Change the `model_types` in the config for different decoders training. For detailed information, please refer to code.
+Be advised that the datasets are seperated for friction and stiffness prediction, and the training is also seperated. Change the `output_type` in the decoder config for different decoders training. For detailed information, please refer to code.
 
 You may use our pre-collected dataset for training. Download the `dataset` folder from [this link](https://drive.google.com/drive/folders/1GiX66anCw4DuOGTlS3FzBez0hATTrJbL?usp=drive_link). Specify the paths for training and validation data in the configuration file.
 
 
-Here is the training command:
+### Usage
 ```bash
-python physical_decoder_training/train.py
+python physical_decoder_training/train_eval.py
 ```
-## Self-supervised Visual Decoder Learning (Folder: base_wvn)
+## 3. Self-supervised Visual Decoder Learning (Folder: [base_wvn](base_wvn/))
 
 Please check the Readme in `base_wvn` folder for detailed instructions.

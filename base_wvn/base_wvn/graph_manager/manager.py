@@ -20,24 +20,24 @@ from .graphs import (
 from .nodes import MainNode, SubNode
 from ..utils import ImageProjector, PhyLoss
 from ..model import VD_dataset, get_model
+from ..config.wvn_cfg import ParamCollection
 
 to_tensor = transforms.ToTensor()
 
 
 class Manager:
-    def __init__(self, device: str = "cuda", param=None, **kwargs):
+    def __init__(self, param: ParamCollection = None):
         self._param = param
         graph_params = param.graph
         loss_params = param.loss
         model_params = param.model
-        self._device = device
+        self._device = param.run.device
         self._label_ext_mode = graph_params.label_ext_mode
-        self._vis_node_index = graph_params.vis_node_index
+        self._vis_node_index_from_last = graph_params.vis_node_index_from_last
         self._min_samples_for_training = graph_params.min_samples_for_training
         self._update_range_main_graph = graph_params.update_range_main_graph
         self._cut_threshold = graph_params.cut_threshold
         self._edge_dist_thr_main_graph = graph_params.edge_dist_thr_main_graph
-        self._extraction_store_folder = graph_params.extraction_store_folder
         self._random_sample_num = graph_params.random_sample_num
         self._phy_dim = param.feat.physical_dim
         self._lr = param.optimizer.lr
@@ -59,12 +59,13 @@ class Manager:
             self._main_graph = BaseGraph(edge_distance=self._edge_dist_thr_main_graph)
         else:
             self._main_graph = MaxElementsGraph(
-                edge_distance=self._edge_dist_thr_main_graph, max_elements=20
+                edge_distance=self._edge_dist_thr_main_graph,
+                max_elements=self._param.graph.max_node_number,
             )
 
         # Visualization node
         self._vis_main_node = None
-        self._graph_distance = None
+        self.distance_between_last_main_node_and_last_sub_node = None
 
         # Mutex
         self._learning_lock = Lock()
@@ -75,19 +76,24 @@ class Manager:
 
         #  Init model and optimizer, loss function...
         # Lightning module
-        seed_everything(42)
+        seed_everything(param.run.seed)
         self._model = get_model(model_params).to(self._device)
         self._model.train()
-        self._optimizer = torch.optim.Adam(
-            self._model.parameters(), lr=self._lr, weight_decay=self._wd
-        )
+        if param.optimizer.name.lower() == "adam":
+            self._optimizer = torch.optim.Adam(
+                self._model.parameters(), lr=self._lr, weight_decay=self._wd
+            )
+        elif param.optimizer.name.lower() == "sgd":
+            self._optimizer = torch.optim.SGD(
+                self._model.parameters(), lr=self._lr, weight_decay=self._wd
+            )
+        else:
+            raise ValueError(
+                f"Unsupported optimizer: {param.optimizer.name}. Supported optimizers: Adam, SGD."
+            )
         self._phy_loss = PhyLoss(
             w_pred=loss_params.w_pred,
             w_reco=loss_params.w_reco,
-            method=loss_params.method,
-            confidence_std_factor=loss_params.confidence_std_factor,
-            log_enabled=loss_params.log_enabled,
-            log_folder=loss_params.log_folder,
             reco_loss_type=loss_params.reco_loss_type,
         ).to(self._device)
         self._loss = torch.tensor([torch.inf])
@@ -142,24 +148,26 @@ class Manager:
     def update_visualization_node(self):
         # For the first nodes we choose the visualization node as the last node available
         valid_num = self._main_graph.get_num_valid_nodes()
-        if valid_num <= self._vis_node_index:
+        if valid_num <= self._vis_node_index_from_last:
             # self._vis_main_node = self._main_graph.get_nodes()[0]
             if valid_num == 0:
                 return
             self._vis_main_node = self._main_graph.get_valid_nodes()[0]
         else:
             self._vis_main_node = self._main_graph.get_valid_nodes()[
-                -self._vis_node_index
+                -self._vis_node_index_from_last
             ]
 
         # check the head distance between main and sub graph
         last_main_node = self._main_graph.get_last_node()
         last_sub_node = self.last_sub_node
         if last_main_node is not None and last_sub_node is not None:
-            self._graph_distance = last_main_node.distance_to(last_sub_node)
+            self.distance_between_last_main_node_and_last_sub_node = (
+                last_main_node.distance_to(last_sub_node)
+            )
 
     @accumulate_time
-    def add_main_node(self, node: MainNode, verbose: bool = False, logger=None):
+    def add_main_node(self, node: MainNode, logger: dict):
         """
         Add new node to the main graph with img and supervision info
         supervision mask has self._phy_dim channels e.g. (2,H,W)
@@ -167,17 +175,11 @@ class Manager:
         if self._pause_main_graph:
             return False
         success = self._main_graph.add_node(node)
-        if success and node.use_for_training:
+        if success:
             # Print some info
             total_nodes = self._main_graph.get_num_nodes()
-            if logger is None:
-                s = f"adding node [{node}], "
-                s += " " * (48 - len(s)) + f"total nodes [{total_nodes}]"
-                if verbose:
-                    print(s)
-            else:
-                with logger["Lock"]:
-                    logger["total main nodes"] = f"{total_nodes}"
+            with logger["Lock"]:
+                logger["total main nodes"] = f"{total_nodes}"
 
             # Init the supervision mask
             H, W = node.image.shape[-2], node.image.shape[-1]
@@ -205,7 +207,7 @@ class Manager:
                 self.project_between_nodes(
                     [node], subnodes, logger=logger, sub2mains=False
                 )
-
+            self.update_visualization_node()
             return True
         else:
             return False
@@ -449,9 +451,7 @@ class Manager:
             block_name="into VDdataset",
             parent_method_name="make_batch_to_dataset",
         ):
-            dataset = VD_dataset(
-                batch_list, combine_batches=True, random_num=self._random_sample_num
-            )
+            dataset = VD_dataset(batch_list, random_num=self._random_sample_num)
 
         return dataset
 
@@ -569,16 +569,16 @@ class Manager:
             if self._label_ext_mode:
                 self._all_dataset.append(dataset)
             with self._learning_lock:
-                for batch_idx in range(dataset.get_batch_num()):
+                for batch_idx in range(
+                    dataset.get_batch_num()
+                ):  # always one batch -- iterate only once
                     # Forward pass
                     res = self._model(dataset.get_x(batch_idx))
 
                     log_step = (self._step % 20) == 0
-                    self._loss, confidence, loss_dict = self._phy_loss(
+                    self._loss, loss_dict = self._phy_loss(
                         dataset,
                         res,
-                        step=self._step,
-                        log_step=log_step,
                         batch_idx=batch_idx,
                     )
 
@@ -598,7 +598,6 @@ class Manager:
             self._step += 1
 
             return_dict["total_loss"] = self._loss.item()
-            return_dict["confidence"] = confidence.mean().item()
             return_dict["loss_reco"] = loss_reco.item()
             return_dict["loss_pred"] = loss_pred.item()
 

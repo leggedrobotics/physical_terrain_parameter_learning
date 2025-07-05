@@ -17,15 +17,8 @@ find_package(catkin REQUIRED COMPONENTS
 
 add_message_files(
   FILES
-  CustomState.msg
-  RobotState.msg
-  SystemState.msg
-  ImageFeatures.msg
-  StampedFloat32MultiArray.msg
   PlaneEdge.msg
   PhyDecoderOutput.msg
-  FeatExtractorOutput.msg
-  FeatInfo.msg
   ChannelInfo.msg
   AnymalState.msg
   Contact.msg

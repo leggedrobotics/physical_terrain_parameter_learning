@@ -17,7 +17,7 @@ class BaseNode:
     _name = "base_node"
 
     def __init__(
-        self, timestamp: float = 0.0, pose_base_in_world: torch.tensor = torch.eye(4)
+        self, timestamp: float = 0.0, pose_base_in_world: torch.Tensor = torch.eye(4)
     ):
         assert isinstance(pose_base_in_world, torch.Tensor)
 
@@ -102,7 +102,7 @@ class BaseNode:
         return self._timestamp
 
     @pose_base_in_world.setter
-    def pose_base_in_world(self, pose_base_in_world: torch.tensor):
+    def pose_base_in_world(self, pose_base_in_world: torch.Tensor):
         self._pose_base_in_world = pose_base_in_world
 
     @timestamp.setter
@@ -124,15 +124,13 @@ class MainNode(BaseNode):
     def __init__(
         self,
         timestamp: float = 0.0,
-        pose_base_in_world: torch.tensor = torch.eye(4),
-        pose_cam_in_world: torch.tensor = None,
-        image: torch.tensor = None,
+        pose_base_in_world: torch.Tensor = torch.eye(4),
+        pose_cam_in_world: torch.Tensor = None,
+        image: torch.Tensor = None,
         image_projector: ImageProjector = None,
         features: Union[torch.tensor, dict] = None,
         feature_type: str = None,
-        segments: torch.tensor = None,
         camera_name="cam",
-        use_for_training=True,
         phy_dim: int = 2,
     ):
         super().__init__(timestamp=timestamp, pose_base_in_world=pose_base_in_world)
@@ -142,21 +140,15 @@ class MainNode(BaseNode):
         self._image = image
         self._image_projector = image_projector
         self._camera_name = camera_name
-        self._use_for_training = use_for_training
         self._features = features
-        self._feature_segments = segments
         self._feature_type = feature_type
-        self._is_feat_compressed = True if isinstance(features, dict) else False
         self._phy_dim = phy_dim
         """ 
         Warning: to save GPU memory, move img and features to cpu
         """
         self._image = self._image.cpu()
-        if self._is_feat_compressed:
-            for key, tensor in self._features.items():
-                self._features[key] = tensor.cpu()
-        else:
-            self._features = self._features.cpu()
+        for key, tensor in self._features.items():
+            self._features[key] = tensor.cpu()
 
         # Uninitialized members
         self._confidence = None
@@ -177,20 +169,12 @@ class MainNode(BaseNode):
         return self._feature_type
 
     @property
-    def is_feat_compressed(self):
-        return self._is_feat_compressed
-
-    @property
     def image(self):
         return self._image
 
     @property
     def features(self):
         return self._features
-
-    @property
-    def feature_segments(self):
-        return self._feature_segments
 
     @property
     def image_projector(self):
@@ -211,10 +195,6 @@ class MainNode(BaseNode):
     @property
     def supervision_mask(self):
         return self._supervision_mask
-
-    @property
-    def use_for_training(self):
-        return self._use_for_training
 
     @camera_name.setter
     def camera_name(self, camera_name):
@@ -248,10 +228,6 @@ class MainNode(BaseNode):
     def supervision_mask(self, supervision_mask):
         self._supervision_mask = supervision_mask
 
-    @use_for_training.setter
-    def use_for_training(self, use_for_training):
-        self._use_for_training = use_for_training
-
     def clear_debug_data(self):
         """Removes all data not required for training"""
         try:
@@ -275,10 +251,7 @@ class MainNode(BaseNode):
         self._pose_base_in_world = self._pose_base_in_world.to(device)
         self._pose_cam_in_world = self._pose_cam_in_world.to(device)
 
-        if self._features is not None and not self._is_feat_compressed:
-            self._features = self._features.to(device)
-        if self._feature_segments is not None:
-            self._feature_segments = self._feature_segments.to(device)
+        # TODO: also move features dict to device
         if self._prediction is not None:
             self._prediction = self._prediction.to(device)
         if self._confidence is not None:
@@ -297,77 +270,28 @@ class MainNode(BaseNode):
         return valid_members and valid_signals
 
     def update_supervision_signal(self):
-        if not self.is_feat_compressed:
-            # it average the supervision signal over each segment in case of muliple possible value in a segment
-            if self._supervision_mask is None:
-                return
-            signal = self._supervision_mask
-            if len(signal.shape) != 3 or signal.shape[0] != self._phy_dim:
-                raise ValueError("Supervision signal must be a 2 channel image (2,H,W)")
-            # If we don't have features, return
-            if self._features is None:
-                return
-
-            # If we have features, update supervision signal
-            C, N, M = signal.shape
-            num_segments = self._feature_segments.max() + 1
-            # torch.arange(0, num_segments)[None, None]
-
-            # Create array to mask by index (used to select the segments)
-            multichannel_index_mask = torch.arange(
-                0, num_segments, device=self._feature_segments.device
-            )[None, None, None].expand(C, N, M, num_segments)
-            # Make a copy of the segments with the dimensionality of the segments, so we can split them on each channel
-            multichannel_segments = self._feature_segments[None, :, :, None].expand(
-                C, N, M, num_segments
-            )
-
-            # Create a multichannel mask that allows to associate a segment to each channel
-            multichannel_segments_mask = (
-                multichannel_index_mask == multichannel_segments
-            )
-
-            # Apply the mask to an expanded supervision signal and get the mean value per segment
-            # First we get the number of elements per segment (stored on each channel)
-            num_elements_per_segment = (
-                multichannel_segments_mask
-                * ~torch.isnan(signal[:, :, :, None].expand(C, N, M, num_segments))
-            ).sum(dim=[1, 2])
-            # We get the sum of all the values of the supervision signal that fall in the segment
-            signal_sum = (
-                signal.nan_to_num(0)[:, :, :, None].expand(C, N, M, num_segments)
-                * multichannel_segments_mask
-            ).sum(dim=[1, 2])
-            # Compute the average of the supervision signal dividing by the number of elements
-            signal_mean = signal_sum / num_elements_per_segment
-
-            # self._supervision_signal = signal_mean.nan_to_num(0)
-        # the not nan pixel is valid
         self._supervision_signal_valid = ~torch.isnan(self._supervision_mask)
 
     def recover_feat(self):
         """Recover the feature from compression if needed"""
-        if not self._is_feat_compressed:
-            return self._features
-        else:
-            # check it must be dict
-            if not isinstance(self._features, dict):
-                raise TypeError("The feature must be dict")
-            # feat in dict: (ratio_h,ratio_w):(B, C, H, W)
-            # recover to tensor (B, H*W,C)
-            recover_feat = []
-            for key, value in self._features:
-                scale_h, scale_w = key
-                resized_feats = F.interpolate(
-                    value.type(torch.float32), scale_factor=(scale_h, scale_w)
-                )
-                recover_feat.append(resized_feats)
-            recover_feat = torch.cat(recover_feat, dim=1)
-            recover_feat = recover_feat.permute(0, 2, 3, 1)
-            res_features = recover_feat.reshape(
-                recover_feat.shape[0], recover_feat.shape[1] * recover_feat.shape[2], -1
+        # check it must be dict
+        if not isinstance(self._features, dict):
+            raise TypeError("The feature must be dict")
+        # feat in dict: (ratio_h,ratio_w):(B, C, H, W)
+        # recover to tensor (B, H*W,C)
+        recover_feat = []
+        for key, value in self._features:
+            scale_h, scale_w = key
+            resized_feats = F.interpolate(
+                value.type(torch.float32), scale_factor=(scale_h, scale_w)
             )
-            return res_features
+            recover_feat.append(resized_feats)
+        recover_feat = torch.cat(recover_feat, dim=1)
+        recover_feat = recover_feat.permute(0, 2, 3, 1)
+        res_features = recover_feat.reshape(
+            recover_feat.shape[0], recover_feat.shape[1] * recover_feat.shape[2], -1
+        )
+        return res_features
 
     def query_valid_batch(self):
         """Since the feat is compressed with ratio info in dict, we need to query the valid feat
@@ -377,89 +301,38 @@ class MainNode(BaseNode):
             valid_feats: (num_valid, C)
             valid_masks: (num_valid, C (=2))
         """
-        # an option whether or not to select the unique feat (the first occurence) within a patch
-        unique = False
         # transfer the features to the same device as supervision_mask
-        if self._is_feat_compressed:
-            temp_feat = {}
-            for key, value in self._features.items():
-                temp_feat[key] = value.to(self._supervision_mask.device)
-        else:
-            temp_feat = self._features.to(self._supervision_mask.device)
+        temp_feat = {}
+        for key, value in self._features.items():
+            temp_feat[key] = value.to(self._supervision_mask.device)
 
-        # first check the real ratio is equal to the ratio in dict
-        if not self._is_feat_compressed:
-            return temp_feat
-        else:
-            _, H_s, W_s = self._supervision_signal_valid.shape
-            valid_indices = torch.where(self._supervision_signal_valid[0] == 1)
-            h_indices, w_indices = valid_indices
-            scale_layer = 0
-            all_selected_feats = []
-            for key, value in temp_feat.items():
-                B, C, H, W = value.shape
-                if H_s / H != key[0] or W_s / W != key[1]:
-                    raise ValueError(
-                        "The ratio in feats dict is not equal to the real ratio"
-                    )
-                ratio_h, ratio_w = key
-                # Vectorize the computation of patch indices
-                patch_h_indices = h_indices // ratio_h
-                patch_w_indices = w_indices // ratio_w
-                patch_h_indices = patch_h_indices.type(torch.int64)
-                patch_w_indices = patch_w_indices.type(torch.int64)
+        _, H_s, W_s = self._supervision_signal_valid.shape
+        valid_indices = torch.where(self._supervision_signal_valid[0] == 1)
+        h_indices, w_indices = valid_indices
+        scale_layer = 0
+        all_selected_feats = []
+        for key, value in temp_feat.items():
+            B, C, H, W = value.shape
+            if H_s / H != key[0] or W_s / W != key[1]:
+                raise ValueError(
+                    "The ratio in feats dict is not equal to the real ratio"
+                )
+            ratio_h, ratio_w = key
+            # Vectorize the computation of patch indices
+            patch_h_indices = h_indices // ratio_h
+            patch_w_indices = w_indices // ratio_w
+            patch_h_indices = patch_h_indices.type(torch.int64)
+            patch_w_indices = patch_w_indices.type(torch.int64)
 
-                if unique:
-                    # Identify unique indices and corresponding unique masks and features
-                    unique_indices, inverse_indices = torch.unique(
-                        torch.stack([patch_h_indices, patch_w_indices], dim=1),
-                        dim=0,
-                        return_inverse=True,
-                    )
-                    selected_feats = value[
-                        :, :, unique_indices[:, 0], unique_indices[:, 1]
-                    ]
-                    selected_feats = selected_feats.squeeze(0).permute(1, 0)
-
-                    # Initialize a tensor to store the selected masks
-                    selected_masks = torch.zeros_like(
-                        self._supervision_mask[:, 0 : unique_indices.shape[0], 0]
-                    )
-                    # Vectorized extraction of masks using advanced indexing
-                    inverse_indices_expand = inverse_indices.unsqueeze(0).expand(
-                        unique_indices.shape[0], -1
-                    )
-                    comp_expand = (
-                        torch.arange(unique_indices.shape[0])
-                        .to(inverse_indices.device)
-                        .unsqueeze(1)
-                        .expand(-1, inverse_indices.shape[0])
-                    )
-                    matching_positions = torch.where(
-                        inverse_indices_expand == comp_expand
-                    )
-
-                    # Calculate the difference between neighboring elements in matching_positions[0]
-                    differences = torch.diff(
-                        matching_positions[0],
-                        prepend=torch.tensor([-1], device=inverse_indices.device),
-                    )
-                    # Identify non-zero differences, indicating the start of a new unique index
-                    first_occurrences = matching_positions[1][differences != 0]
-                    selected_masks = self._supervision_mask[
-                        :, h_indices[first_occurrences], w_indices[first_occurrences]
-                    ].permute(1, 0)
-                    all_selected_feats.append(selected_feats)
-                else:
-                    selected_feats = value[:, :, patch_h_indices, patch_w_indices]
-                    selected_feats = selected_feats.squeeze(0).permute(1, 0)
-                    all_selected_feats.append(selected_feats)
-                    if scale_layer == 0:
-                        selected_masks = self._supervision_mask[
-                            :, h_indices, w_indices
-                        ].permute(1, 0)
-                scale_layer += 1
-            return torch.cat(all_selected_feats, dim=1), selected_masks
+            selected_feats = value[:, :, patch_h_indices, patch_w_indices]
+            selected_feats = selected_feats.squeeze(0).permute(1, 0)
+            all_selected_feats.append(selected_feats)
+            if scale_layer == 0:
+                selected_masks = self._supervision_mask[
+                    :, h_indices, w_indices
+                ].permute(1, 0)
+            scale_layer += 1
+        return torch.cat(all_selected_feats, dim=1), selected_masks
 
 
 class SubNode(BaseNode):
@@ -471,10 +344,10 @@ class SubNode(BaseNode):
     def __init__(
         self,
         timestamp: float = 0,
-        pose_base_in_world: torch.tensor = torch.eye(4),
-        phy_pred: torch.tensor = None,
-        feet_planes: torch.tensor = None,
-        feet_contact: torch.tensor = None,
+        pose_base_in_world: torch.Tensor = torch.eye(4),
+        phy_pred: torch.Tensor = None,
+        feet_planes: torch.Tensor = None,
+        feet_contact: torch.Tensor = None,
     ):
         assert isinstance(pose_base_in_world, torch.Tensor)
         assert len(feet_contact.shape) == 1

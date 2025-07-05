@@ -1,4 +1,0 @@
-numpy==1.26.1
-pytorch_lightning==2.1.0
-setuptools==68.2.2
-torch==2.1.0

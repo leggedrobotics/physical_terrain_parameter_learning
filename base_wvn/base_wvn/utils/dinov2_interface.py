@@ -10,7 +10,9 @@ from torch.cuda.amp import autocast
 
 
 class Dinov2Interface:
-    def __init__(self, device: str, model_type: str = "vit_small", **kwargs):
+    def __init__(
+        self, device: str, model_type: str = "vit_small", patch_size: int = 14
+    ):
         self._model_type = model_type
         # Initialize DINOv2
         if self._model_type == "vit_small":
@@ -25,14 +27,14 @@ class Dinov2Interface:
         elif self._model_type == "vit_huge":
             self.model = torch.hub.load("facebookresearch/dinov2", "dinov2_vitg14_reg")
             self.embed_dim = 1536
-        self.patch_size = kwargs.get("patch_size", 14)
+        self.patch_size = patch_size
         # Send to device
         self.model.to(device)
         self.device = device
 
         self.transform = self._create_transform()
 
-    def _create_transform(self):
+    def _create_transform(self) -> T.Compose:
         # Resize and then center crop to the expected input size
         transform = T.Compose(
             [
@@ -42,7 +44,7 @@ class Dinov2Interface:
         return transform
 
     @torch.no_grad()
-    def inference(self, img: torch.tensor):
+    def inference(self, img: torch.Tensor) -> torch.Tensor:
         # check if it has a batch dim or not
         if img.dim() == 3:
             img = img.unsqueeze(0)
@@ -63,7 +65,7 @@ class Dinov2Interface:
         feat = feat.reshape(B, C, H, W)
         return feat
 
-    def change_device(self, device):
+    def change_device(self, device: str) -> None:
         """Changes the device of all the class members
 
         Args:
