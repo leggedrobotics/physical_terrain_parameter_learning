@@ -304,7 +304,6 @@ def nodes_mask_generation_and_phy_pred_error_computation(
     param: ParamCollection,
     nodes: List[MainNode],
     model: pl.LightningModule,
-    gt_masks: torch.Tensor,
 ) -> Dict[str, torch.Tensor]:
     """
     Here we use the model to generate confidence mask for each node
@@ -344,6 +343,7 @@ def nodes_mask_generation_and_phy_pred_error_computation(
                 step=i,
                 image_name="node" + str(node.timestamp),
                 param=param,
+                foothold_label_mask=node._supervision_mask.to(param.run.device),
                 save_local=True,
             )
         conf_mask = res.conf_mask
@@ -365,14 +365,7 @@ def nodes_mask_generation_and_phy_pred_error_computation(
                     folder_path, "hist", f"node_{i}_uncertainty_histogram.png"
                 ),
             )
-            calculate_and_save_uncertainty_histogram(
-                loss_reco,
-                gt_masks[i, :, :, :].unsqueeze(0),
-                reproj_mask,
-                os.path.join(
-                    folder_path, "hist/gt", f"node_{i}_gt_uncertainty_histogram.png"
-                ),
-            )
+
         conf_masks.append(conf_mask)
         losses.append(loss_reco)
         torch.cuda.empty_cache()
@@ -387,6 +380,7 @@ def nodes_mask_generation_and_phy_pred_error_computation(
             all_conf_masks,
             all_reproj_masks,
             os.path.join(folder_path, "hist", "all_uncertainty_histogram.png"),
+            create_colored_loss_img=False,
         )
 
     all_fric_losses = torch.cat(all_fric_losses)
@@ -425,7 +419,8 @@ def calculate_and_save_uncertainty_histogram(
     all_reproj_masks: torch.Tensor = None,
     save_path: str = None,
     colormap: str = "coolwarm",
-) -> np.ndarray:
+    create_colored_loss_img: bool = True,
+) -> None:
     """
     Calculate a histogram of the uncertainty values (losses) from reproj_masks(should be very certain)
     and from conf_masks
@@ -493,7 +488,7 @@ def calculate_and_save_uncertainty_histogram(
     unconf_n, unconf_bins, unconf_patches = plt.hist(
         unconf_mask_losses,
         bins,
-        color="red",
+        color="blue",
         label="Un-confident Mask",
         alpha=1.0,
         density=False,
@@ -502,10 +497,14 @@ def calculate_and_save_uncertainty_histogram(
     # calculate how many bins is non-zero in conf and unconf, use the number for splitting the colormap
     conf_bin_num = 0
     for c_i, conf_nn in enumerate(conf_n):
-        if conf_nn > 0:
+        if conf_nn > 0 and conf_nn >= unconf_n[c_i]:
             conf_bin_num += 1
         else:
-            if c_i < len(conf_n) - 1 and conf_n[c_i + 1] > 0:
+            if (
+                c_i < len(conf_n) - 1
+                and conf_n[c_i + 1] > 0
+                and conf_nn >= unconf_n[c_i]
+            ):
                 conf_bin_num += 1
     unconf_bin_num = num_bins - conf_bin_num
     # Split the colormap into two parts
@@ -523,10 +522,6 @@ def calculate_and_save_uncertainty_histogram(
     ):
         unconf_patch.set_facecolor(color)
 
-    colored_loss_img = create_colored_lossimg(
-        all_losses, bins, conf_bin_num, unconf_bin_num, conf_color, unconf_color
-    )
-
     # Add labels and title
     plt.xlabel("Loss Value", fontsize=7)
     plt.ylabel("Frequency", fontsize=7)
@@ -541,14 +536,18 @@ def calculate_and_save_uncertainty_histogram(
     # plt.show()
     plt.close()
 
-    plt.imshow(colored_loss_img)
-    plt.axis("off")
-    plt.tight_layout()
-    base = os.path.splitext(save_path)[0]
-    save_path = base + "_colored_mask.pdf"
-    plt.savefig(save_path)
-    plt.close()
-    return colored_loss_img
+    if create_colored_loss_img:
+        colored_loss_img = create_colored_lossimg(
+            all_losses, bins, conf_bin_num, unconf_bin_num, conf_color, unconf_color
+        )
+
+        plt.imshow(colored_loss_img)
+        plt.axis("off")
+        plt.tight_layout()
+        base = os.path.splitext(save_path)[0]
+        save_path = base + "_colored_mask.pdf"
+        plt.savefig(save_path)
+        plt.close()
 
 
 def create_colored_lossimg(

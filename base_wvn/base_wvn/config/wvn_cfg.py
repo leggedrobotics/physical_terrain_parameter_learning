@@ -267,16 +267,11 @@ class ParamCollection(Serializable):
         SAM_type: str = "vit_h"
         SAM_ckpt: str = "/media/chenc/Chen/sam_vit_h_4b8939.pth"
 
-        # vis options
+        # vis options, will siginificantly slow down the training since it plots each training step
+        # recommend to turn off in training
         plot_hist: bool = False
-        hist_colormap: str = "plasma"
-        colored_mask_alpha: float = 0.7
-
-        plot_overlay: bool = False
         plot_nodes: bool = False
-        plot_masks_compare: bool = False  # will siginificantly slow down the training since it plots each training step
-
-        analyze_path: str = "results/analyze"
+        plot_masks_compare: bool = False
 
     offline: OfflineParams = OfflineParams()
 

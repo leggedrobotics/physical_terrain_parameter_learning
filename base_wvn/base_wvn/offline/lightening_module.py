@@ -148,7 +148,7 @@ class MaskedPredErrorComputer:
 
     def compte_and_log(self, model: DecoderLightning, log: bool) -> Dict[str, float]:
         output_dict = nodes_mask_generation_and_phy_pred_error_computation(
-            self.param, self.nodes, model, self.gt_masks
+            self.param, self.nodes, model
         )
 
         conf_masks = output_dict["all_conf_masks"]
@@ -167,6 +167,7 @@ class MaskedPredErrorComputer:
         )
 
         if self.param.offline.plot_masks_compare:
+            # Plot the comparison between gt_masks and conf_masks
             plot_masks_compare(
                 self.gt_masks,
                 conf_masks,
