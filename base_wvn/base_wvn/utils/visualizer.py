@@ -138,9 +138,9 @@ def add_color_bar_and_save(new_img, channel, path, **kwargs):
             ax.set_title("Dense Prediction w. Mask")
         elif i == 0 and num_images > 1:
             ax.set_title("Original Image")
-        elif i == 1 and num_images > 2:
+        elif i == 1 and num_images > 3:
             ax.set_title("Label Projection")
-        elif i == 2 and num_images > 3:
+        elif i == num_images - 2 and num_images > 2:
             ax.set_title("Dense Prediction")
 
     # Adjust subplot parameters to reduce space between images

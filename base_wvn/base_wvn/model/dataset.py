@@ -28,7 +28,7 @@ class VD_dataset(Dataset):
 
         # randomly pick random_num samples from the dataset as the new batches
         # Check if random_num is greater than dataset size
-        if random_num > self.xs.size(0):
+        if random_num > self.xs.size(0) or random_num == -1:
             self.batches = [(self.xs, self.ys)]
         else:
             # Randomly pick random_num samples from the dataset
@@ -41,7 +41,7 @@ class VD_dataset(Dataset):
     def __len__(self):
         return sum(len(batch[0]) for batch in self.batches)
 
-    def __getitem__(self, index):
+    def __getitem__(self, index: int) -> Tuple[torch.Tensor, torch.Tensor]:
         # Find the right batch and index within that batch
         for x_batch, y_batch in self.batches:
             if index < len(x_batch):
@@ -52,21 +52,23 @@ class VD_dataset(Dataset):
     def get_batch_num(self):
         return len(self.batches)
 
-    def get_x(self, batch_idx=None):
+    def get_x(self, batch_idx: int = None) -> torch.Tensor:
         if batch_idx is None:
             raise ValueError(
                 "batch_idx must be specified when batches are not combined."
             )
         return self.batches[batch_idx][0]
 
-    def get_y(self, batch_idx=None):
+    def get_y(self, batch_idx: int = None) -> torch.Tensor:
         if batch_idx is None:
             raise ValueError(
                 "batch_idx must be specified when batches are not combined."
             )
         return self.batches[batch_idx][1]
 
-    def add_batches(self, new_list_of_batches):
+    def add_batches(
+        self, new_list_of_batches: List[Tuple[torch.Tensor, torch.Tensor]]
+    ) -> None:
         # Perform dimension check as before
         for x, y in new_list_of_batches:
             if x.shape[0] != y.shape[0]:
@@ -82,10 +84,22 @@ class VD_dataset(Dataset):
         self.ys = torch.cat([ys] + list(new_ys), dim=0)
         self.batches = [(self.xs, self.ys)]
 
-    def save_dataset(dataset, file_path):
+    @staticmethod
+    def merge_VD_datasets(
+        vd_datasets: List["VD_dataset"], kept_num: int
+    ) -> "VD_dataset":
+        """
+        Merges multiple VD_dataset instances into a single VD_dataset.
+        """
+        all_batches = []
+        for dataset in vd_datasets:
+            all_batches.extend(dataset.batches)
+        return VD_dataset(all_batches, random_num=kept_num)
+
+    def save_dataset(dataset: "VD_dataset", file_path: str) -> None:
         torch.save(dataset, file_path)
 
-    def load_dataset(file_path):
+    def load_dataset(file_path: str) -> "VD_dataset":
         return torch.load(file_path)
 
 

@@ -77,7 +77,7 @@ class Manager:
 
         #  Init model and optimizer, loss function...
         # Lightning module
-        seed_everything(42)
+        seed_everything(param.run.seed)
         self._model = get_model(model_params).to(self._device)
         self._model.train()
         if param.optimizer.name.lower() == "adam":
@@ -570,7 +570,9 @@ class Manager:
             if self._label_ext_mode:
                 self._all_dataset.append(dataset)
             with self._learning_lock:
-                for batch_idx in range(dataset.get_batch_num()):
+                for batch_idx in range(
+                    dataset.get_batch_num()
+                ):  # always one batch -- iterate only once
                     # Forward pass
                     res = self._model(dataset.get_x(batch_idx))
 

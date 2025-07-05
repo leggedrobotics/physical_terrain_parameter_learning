@@ -258,7 +258,7 @@ def create_dataset_from_nodes(
             new_features = {list(compressed_feats.keys())[0]: feat_input}
             node.features = new_features
     batch_list = [mnode.query_valid_batch() for i, mnode in enumerate(nodes)]
-    dataset = VD_dataset(batch_list, random_num=1e10)
+    dataset = VD_dataset(batch_list, random_num=-1)
     return dataset
 
 

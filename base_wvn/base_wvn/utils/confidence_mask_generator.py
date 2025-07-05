@@ -301,8 +301,8 @@ def plot_pred_w_overlay(
         )
         # ---debug for paper plotting, conf mask section---
         # overlay_img=plot_overlay_image_binary(trans_img, overlay_mask=output_phy, channel=i,alpha=0.7)
-        out_image = PIL.Image.fromarray(overlay_img)
-        out_image_raw = PIL.Image.fromarray(overlay_img_raw)
+        out_image = PIL.Image.fromarray(overlay_img)  # masked prediction
+        out_image_raw = PIL.Image.fromarray(overlay_img_raw)  # raw/unmasked prediction
         rotated_image = rot_or_not(out_image, param)
         rotated_image_raw = rot_or_not(out_image_raw, param)
 
@@ -335,7 +335,6 @@ def plot_pred_w_overlay(
                 filename = f"{image_name}_stiff_den_pred_step_{step}_{param.loss.confidence_mode}.jpg"
             file_path = os.path.join(output_dir, filename)
             # Save the image
-            rotated_image.save(file_path)
             add_color_bar_and_save(vis_imgs, i, file_path)
 
     # return output_phy,trans_img,confidence,conf_mask_resized

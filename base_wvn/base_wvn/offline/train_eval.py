@@ -109,7 +109,7 @@ def evaluate(param: ParamCollection) -> Optional[Dict[str, float]]:
     """
     if param.offline.test_on_images:
         test_imgs = load_all_test_images(
-            os.path.join(param.offline.data_folder, "val", param.offline.env)
+            os.path.join(param.offline.data_folder, "train", param.offline.env)
         )
         for name, img in test_imgs.items():
             trans_img, compressed_feat = model.feat_extractor.extract(img)

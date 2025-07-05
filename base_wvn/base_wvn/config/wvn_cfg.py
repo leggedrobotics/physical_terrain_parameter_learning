@@ -23,7 +23,7 @@ class ParamCollection(Serializable):
     class GeneralParams:
         """General parameters for the experiment."""
 
-        name: str = "debug/debug"
+        name: str = "debug"
         timestamp: bool = True
         online_training: bool = True
         resume_training: bool = False
@@ -136,6 +136,7 @@ class ParamCollection(Serializable):
         device: str = "cuda"
         mode: str = "debug"
         palette: str = "husl"
+        seed: int = 42
 
     run: RunParams = RunParams()
 
@@ -204,7 +205,6 @@ class ParamCollection(Serializable):
     @dataclass
     class ModelParams:
         name: str = "SeperateMLP"
-        load_ckpt: Optional[str] = None
 
         @dataclass
         class SimpleMlpCfgParams:
@@ -228,7 +228,9 @@ class ParamCollection(Serializable):
         @dataclass
         class SeperateMLPCfgParams:
             input_size: int = 384
-            hidden_sizes: List[int] = field(default_factory=lambda: [128, 32, 128, 2])
+            hidden_sizes: List[int] = field(
+                default_factory=lambda: [128, 32, 128, 2]
+            )  # M
 
             def to_dict(self):
                 return vars(self)
@@ -244,13 +246,12 @@ class ParamCollection(Serializable):
         env: str = "vowhite_both"  # vowhite_both
         reload_model: bool = False
         use_online_ckpt: bool = False
+        replicate_online_training: bool = True
         ckpt_parent_folder: str = "results/overlay"
         data_folder: str = "results/manager"
         train_datafile: str = "train_data.pt"
         nodes_datafile: str = "train_nodes.pt"
         image_file: str = "image_buffer.pt"
-        # img_bag_path:str='/media/chen/UDisk1/vis_rosbag/snow/2022-12-10-15-40-10_anymal-d020-npc_mission_0.bag'
-        # img_bag_path:str='/media/chen/Chen/20240211_Dodo_MPI/2024_02_11_Dodo_MPI_Vicon/2024-02-11-14-28-25/mission_data/2024-02-11-14-28-25_npc_wide_angle_camera_0.bag'
         img_bag_path: str = "/media/chenc/Chen/2024-01-25-white-board/2nd/2024-01-25-19-38-19_anymal-d020-npc_0.bag"
         # img_bag_path:str='/media/chen/Chen/2024-01-25-white-board/1st/2024-01-25-19-36-11_anymal-d020-npc_0.bag'
         # img_bag_path:str='/media/chen/Chen/rosbag_white/2nd/2024-01-16-21-45-48_anymal-d020-npc_0-003.bag'
@@ -265,7 +266,6 @@ class ParamCollection(Serializable):
         gt_model: str = "SAM"
         SAM_type: str = "vit_h"
         SAM_ckpt: str = "/media/chenc/Chen/sam_vit_h_4b8939.pth"
-        # SAM_ckpt='/media/chen/UDisk1/sam_hq_vit_h.pth'
 
         # vis options
         plot_hist: bool = False
@@ -274,7 +274,7 @@ class ParamCollection(Serializable):
 
         plot_overlay: bool = False
         plot_nodes: bool = False
-        plot_masks_compare: bool = False
+        plot_masks_compare: bool = False  # will siginificantly slow down the training since it plots each training step
 
         analyze_path: str = "results/analyze"
 

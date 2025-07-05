@@ -36,15 +36,31 @@ class EntireDataset(torch.utils.data.Dataset):
 def get_train_eval_dataloaders(
     param: ParamCollection, model: DecoderLightning
 ) -> Tuple[DataLoader, DataLoader]:
-    # load train and val data from nodes_datafile (should include all pixels of supervision masks)
-    train_data_raw = load_data(
-        os.path.join(
-            param.offline.data_folder,
-            "train",
-            param.offline.env,
-            param.offline.nodes_datafile,
+    if param.offline.replicate_online_training:
+        train_data_raw = load_data(
+            os.path.join(
+                param.offline.data_folder,
+                "train",
+                param.offline.env,
+                param.offline.train_datafile,
+            )
         )
-    )
+        train_data = VD_dataset.merge_VD_datasets(train_data_raw, -1)
+    else:
+        # load train and val data from nodes_datafile (should include all pixels of supervision masks)
+        train_data_raw = load_data(
+            os.path.join(
+                param.offline.data_folder,
+                "train",
+                param.offline.env,
+                param.offline.nodes_datafile,
+            )
+        )
+        train_data = create_dataset_from_nodes(
+            param,
+            train_data_raw,
+            model.feat_extractor,
+        )
     try:
         val_data_raw = load_data(
             os.path.join(
@@ -63,23 +79,23 @@ def get_train_eval_dataloaders(
                 param.offline.nodes_datafile,
             )
         )
-    train_data = create_dataset_from_nodes(
-        param,
-        train_data_raw,
-        model.feat_extractor,
-    )
-    train_dataset = EntireDataset(
-        train_data
-    )  # input contain all datapoints as one batch, so need the EntireDataset wrapper to split the batch
     val_data = create_dataset_from_nodes(
         param,
         val_data_raw,
         model.feat_extractor,
     )
+
+    train_dataset = EntireDataset(
+        train_data
+    )  # input contain all datapoints as one batch, so need the EntireDataset wrapper to split the batch
     val_dataset = EntireDataset(val_data)
     batch_size = param.graph.random_sample_num
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    train_loader = DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        shuffle=False if param.offline.replicate_online_training else True,
+    )
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
     # batch in loader is a tuple of (xs, ys)
     # xs:(1, 100, feat_dim), ys:(1, 100, 2)

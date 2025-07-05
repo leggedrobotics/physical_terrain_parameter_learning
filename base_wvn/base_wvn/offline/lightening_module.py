@@ -21,6 +21,7 @@ from base_wvn.utils import (
 )
 from base_wvn.config.wvn_cfg import ParamCollection
 import pytorch_lightning as pl
+from pytorch_lightning import seed_everything
 from typing import Dict
 
 
@@ -31,6 +32,7 @@ class DecoderLightning(pl.LightningModule):
         self.params = params
         loss_params = self.params.loss
         self.step = 0
+        seed_everything(params.run.seed)
 
         self.feat_extractor = FeatureExtractor(self.params)
         self.conf_mask_generator = ConfidenceMaskGeneratorFactory.create(
@@ -58,6 +60,8 @@ class DecoderLightning(pl.LightningModule):
         res = self.model(xs)
         loss, loss_dict = self.loss_fn((xs, ys), res)
         self.log("train_loss", loss)
+        self.log("train_reco_loss", loss_dict["loss_reco"])
+        self.log("train_phy_loss", loss_dict["loss_pred"])
 
         if self.params.offline.upload_error_stats_in_training:
             # upload the error stats calculated by the err_computer
@@ -78,8 +82,8 @@ class DecoderLightning(pl.LightningModule):
         loss, loss_dict = self.loss_fn((xs, ys), res)
 
         self.log("val_loss", loss)
-        self.log("reco_loss", loss_dict["loss_reco"])
-        self.log("phy_loss", loss_dict["loss_pred"])
+        self.log("val_reco_loss", loss_dict["loss_reco"])
+        self.log("val_phy_loss", loss_dict["loss_pred"])
         self.val_loss = loss
 
         return loss
