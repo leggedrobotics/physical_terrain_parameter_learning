@@ -37,6 +37,7 @@ pip install -e .
 ```bash
 catkin build wild_visual_navigation_ros
 source devel/setup.bash
+export PATH="$CONDA_PREFIX/bin:$PATH"          # (Optional) if you are using conda environment and experiencing missing python path after sourcing the workspace 
 ```
 
 ## General configuration
