@@ -554,7 +554,8 @@ class MainProcess(RosNode):
             if not self.param.general.online_training:
                 self.manager.pause_learning = True
             res = self.manager.train()
-            self.conf_mask_generator.update(res["loss_reco_per_pixel"])
+            if "loss_reco_per_pixel" in res:
+                self.conf_mask_generator.update(res["loss_reco_per_pixel"])
 
             self.log("training_step", self.manager.step)
 
