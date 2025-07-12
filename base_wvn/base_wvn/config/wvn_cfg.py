@@ -185,7 +185,6 @@ class ParamCollection(Serializable):
 
         max_node_number: int = 40
         update_range_main_graph: float = 5  # 50
-        cut_threshold: float = 5.0
         edge_dist_thr_main_graph: float = 0.2  # 0.2
 
         use_sub_graph: bool = False  # only set to True when the robot is walking reversely to the camera direction, should avoid this case

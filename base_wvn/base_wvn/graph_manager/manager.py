@@ -36,7 +36,6 @@ class Manager:
         self._vis_node_index_from_last = graph_params.vis_node_index_from_last
         self._min_samples_for_training = graph_params.min_samples_for_training
         self._update_range_main_graph = graph_params.update_range_main_graph
-        self._cut_threshold = graph_params.cut_threshold
         self._edge_dist_thr_main_graph = graph_params.edge_dist_thr_main_graph
         self._random_sample_num = graph_params.random_sample_num
         self._phy_dim = param.feat.physical_dim
@@ -242,11 +241,8 @@ class Manager:
             if last_main_node is None:
                 return False
             main_nodes = self._main_graph.get_nodes_within_radius_range(
-                last_main_node, 0, self._update_range_main_graph
+                subnode, 0, self._update_range_main_graph, metric="pose"
             )
-            # check if the last main node is too far away from the sub node
-            if last_main_node.distance_to(subnode) > self._cut_threshold:
-                return False
             num_valid_nodes = self._main_graph.get_num_valid_nodes()
             with logger["Lock"]:
                 logger["to_be_updated_mnode_num"] = len(main_nodes)
@@ -257,6 +253,7 @@ class Manager:
             self.project_between_nodes(
                 main_nodes, [subnode], logger=logger, sub2mains=True
             )
+            self.update_visualization_node()
 
         return True
 
@@ -563,7 +560,7 @@ class Manager:
 
         num_valid_nodes = self._main_graph.get_num_valid_nodes()
         return_dict = {"main_graph_num_valid_node": num_valid_nodes}
-        if num_valid_nodes > self._min_samples_for_training:
+        if num_valid_nodes >= self._min_samples_for_training:
             # Prepare new batch
             dataset = self.make_batch_to_dataset(self._min_samples_for_training)
             if self._label_ext_mode:

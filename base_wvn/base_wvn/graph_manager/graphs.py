@@ -162,23 +162,12 @@ class BaseGraph:
         node: BaseNode,
         min_radius: float,
         max_radius: float,
-        time_eps: float = 1,
-        metric: str = "dijkstra",
+        metric: str = "pose",
     ):
-        # Find closest node in the graph (timestamp). This is useful when we are finding nodes corresponding to another graph
-        closest_node = self.get_node_with_timestamp(node.timestamp, eps=time_eps)
-        if closest_node is None:
-            return []
         nodes = []
         try:
             with self._lock:
-                if metric == "dijkstra":
-                    # Here we compute the closest nodes respecting the graph's structure
-                    length, path = nx.single_source_dijkstra(
-                        self._graph, closest_node, cutoff=max_radius, weight="distance"
-                    )
-                    nodes = sorted(list(length)[1:])  # first node is the query node
-                elif metric == "pose":
+                if metric == "pose":
                     # Here we compute the closest nodes just using the 3D pose of the nodes
                     def pose_distance_filter(other):
                         d = abs(other.distance_to(node))
@@ -188,6 +177,10 @@ class BaseGraph:
                         nx.subgraph_view(
                             self._graph, filter_node=pose_distance_filter
                         ).nodes
+                    )
+                else:
+                    raise ValueError(
+                        f"Unknown metric {metric}. Only 'pose' is supported."
                     )
 
         except Exception as e:
