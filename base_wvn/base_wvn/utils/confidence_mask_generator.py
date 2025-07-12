@@ -12,6 +12,7 @@ from typing import Dict, Tuple, List
 from abc import ABC, abstractmethod
 from sklearn.mixture import GaussianMixture
 from dataclasses import dataclass
+from collections import deque
 from .loss import PhyLoss
 from ..config import save_to_yaml, ParamCollection
 import PIL.Image
@@ -35,6 +36,12 @@ class ConfidenceMaskGeneratorFactory:
                 threshold=0.5,
                 method="running_mean",
                 device=device,
+            )
+        elif mode == "gmm_1d_history":
+            return GMM1DHistory(
+                num_components=2,
+                deivice=device,
+                max_history_length=10,  # adjustable
             )
         else:
             raise ValueError(f"Confidence mask generator mode {mode} not implemented")
@@ -261,6 +268,47 @@ class GMM1D(MaskGenerator):
         loss = loss.detach().cpu().numpy().reshape(-1, 1)  # (H*W, 1)
         self.gmm_1d.fit(loss)
         labels = self.gmm_1d.predict(loss)
+        confident_cluster = self.gmm_1d.means_.argmin()
+        confidence_mask = labels == confident_cluster
+        return torch.tensor(confidence_mask, dtype=torch.bool, device=self.device)
+
+
+class GMM1DHistory(MaskGenerator):
+    def __init__(self, num_components: int, deivice: str, max_history_length: int):
+        super(GMM1DHistory, self).__init__()
+        self.num_components = num_components
+        self.device = deivice
+        self.loss_history_raw = deque(
+            maxlen=max_history_length
+        )  # keep the last few loss Tensors
+        self.gmm_1d = GaussianMixture(
+            n_components=self.num_components,
+            random_state=42,
+        )
+
+    def update(self, x: torch.Tensor) -> None:
+        self.loss_history_raw.append(x.clone().detach())
+
+    @property
+    def loss_history(self) -> torch.Tensor:
+        return torch.cat(list(self.loss_history_raw), dim=0)
+
+    def get_confidence_mask_from_recon_loss(self, loss: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            loss (torch.Tensor): shape (H*W,)
+
+        Returns:
+            torch.Tensor: shape (H*W,), boolean mask, need to be reshaped later
+        """
+        assert loss.dim() == 1, "Loss tensor should be 1D"
+        loss = loss.detach().cpu()
+        loss_history = self.loss_history.detach().cpu()
+        loss_to_fit = (
+            torch.cat([loss, loss_history], dim=0).numpy().reshape(-1, 1)
+        )  # (H*W+history, 1)
+        self.gmm_1d.fit(loss_to_fit)
+        labels = self.gmm_1d.predict(loss.numpy().reshape(-1, 1))
         confident_cluster = self.gmm_1d.means_.argmin()
         confidence_mask = labels == confident_cluster
         return torch.tensor(confidence_mask, dtype=torch.bool, device=self.device)
