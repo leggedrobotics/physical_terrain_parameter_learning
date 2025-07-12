@@ -233,9 +233,6 @@ class Manager:
                     with logger["Lock"]:
                         logger["total sub nodes"] = f"{total_nodes}"
 
-        # feet_planes=subnode.feet_planes
-        # feet_contact=subnode.feet_contact
-
         if not self._use_sub_graph:
             last_main_node: MainNode = self._main_graph.get_last_node()
             if last_main_node is None:
