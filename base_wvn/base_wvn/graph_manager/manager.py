@@ -414,16 +414,6 @@ class Manager:
                     (~torch.isnan(mnodes[-1].supervision_mask[0])).sum().item()
                 )
 
-    def get_main_nodes(self):
-        return self._main_graph.get_nodes()
-
-    def get_last_valid_main_node(self):
-        last_valid_node = None
-        for node in self._main_graph.get_nodes():
-            if node.is_valid():
-                last_valid_node = node
-        return last_valid_node
-
     def get_main_node_for_visualization(self):
         return self._vis_main_node
 

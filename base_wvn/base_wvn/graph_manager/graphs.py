@@ -217,24 +217,14 @@ class BaseGraph:
         node: BaseNode,
         min_radius: float = 0,
         max_radius: float = float("inf"),
-        metric: str = "dijkstra",
     ):
         # Significantly faster then checking all the nodes
         nodes_to_remove = []
         for n in self._graph.nodes()._nodes.keys():
-            if (
-                torch.linalg.norm(
-                    n.pose_base_in_world[:3, 3] - node.pose_base_in_world[:3, 3]
-                )
-                > min_radius
-            ):
+            dist = node.distance_to(n)
+            if dist > min_radius and dist < max_radius:
                 nodes_to_remove.append(n)
-            else:
-                break
 
-        # nodes_to_remove = self.get_nodes_within_radius_range(
-        #     node, min_radius=min_radius, max_radius=max_radius, metric=metric
-        # )
         self.remove_nodes(nodes_to_remove)
 
     def remove_nodes_within_timestamp(self, t_ini: float, t_end: float):
