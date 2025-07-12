@@ -202,7 +202,7 @@ class ParamCollection(Serializable):
 
     @dataclass
     class ModelParams:
-        name: str = "SimpleMLP"
+        name: str = "SeperateMLP"
 
         @dataclass
         class SimpleMlpCfgParams:
