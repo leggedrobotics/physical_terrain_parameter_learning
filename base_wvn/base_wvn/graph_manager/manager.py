@@ -225,32 +225,24 @@ class Manager:
             if success:
                 # Print some info
                 total_nodes = self._sub_graph.get_num_nodes()
-                if logger is None:
-                    s = f"adding node [{subnode}], "
-                    s += " " * (48 - len(s)) + f"total nodes [{total_nodes}]"
-                    print(s)
-                else:
-                    with logger["Lock"]:
-                        logger["total sub nodes"] = f"{total_nodes}"
+                with logger["Lock"]:
+                    logger["total sub nodes"] = f"{total_nodes}"
 
-        if not self._use_sub_graph:
-            last_main_node: MainNode = self._main_graph.get_last_node()
-            if last_main_node is None:
-                return False
-            main_nodes = self._main_graph.get_nodes_within_radius_range(
-                subnode, 0, self._update_range_main_graph, metric="pose"
-            )
-            num_valid_nodes = self._main_graph.get_num_valid_nodes()
-            with logger["Lock"]:
-                logger["to_be_updated_mnode_num"] = len(main_nodes)
-                logger["num_valid_mnode"] = num_valid_nodes
-            if len(main_nodes) < 1:
-                return False
+        last_main_node: MainNode = self._main_graph.get_last_node()
+        if last_main_node is None:
+            return False
+        main_nodes = self._main_graph.get_nodes_within_radius_range(
+            subnode, 0, self._update_range_main_graph
+        )
+        num_valid_nodes = self._main_graph.get_num_valid_nodes()
+        with logger["Lock"]:
+            logger["to_be_updated_mnode_num"] = len(main_nodes)
+            logger["num_valid_mnode"] = num_valid_nodes
+        if len(main_nodes) < 1:
+            return False
 
-            self.project_between_nodes(
-                main_nodes, [subnode], logger=logger, sub2mains=True
-            )
-            self.update_visualization_node()
+        self.project_between_nodes(main_nodes, [subnode], logger=logger, sub2mains=True)
+        self.update_visualization_node()
 
         return True
 

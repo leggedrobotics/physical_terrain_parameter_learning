@@ -162,26 +162,20 @@ class BaseGraph:
         node: BaseNode,
         min_radius: float,
         max_radius: float,
-        metric: str = "pose",
     ):
         nodes = []
         try:
             with self._lock:
-                if metric == "pose":
-                    # Here we compute the closest nodes just using the 3D pose of the nodes
-                    def pose_distance_filter(other):
-                        d = abs(other.distance_to(node))
-                        return d >= min_radius and d < max_radius
+                # Here we compute the closest nodes just using the 3D pose of the nodes
+                def pose_distance_filter(other):
+                    d = abs(other.distance_to(node))
+                    return d >= min_radius and d < max_radius
 
-                    nodes = sorted(
-                        nx.subgraph_view(
-                            self._graph, filter_node=pose_distance_filter
-                        ).nodes
-                    )
-                else:
-                    raise ValueError(
-                        f"Unknown metric {metric}. Only 'pose' is supported."
-                    )
+                nodes = sorted(
+                    nx.subgraph_view(
+                        self._graph, filter_node=pose_distance_filter
+                    ).nodes
+                )
 
         except Exception as e:
             print(f"[get_nodes_within_radius_range] Exception: {e}")
@@ -316,6 +310,6 @@ class DistanceWindowGraph(BaseGraph):
 
         # Remove all nodes farther than self._max_distance
         self.remove_nodes_within_radius_range(
-            node, min_radius=self._max_distance, max_radius=float("inf"), metric="pose"
+            node, min_radius=self._max_distance, max_radius=float("inf")
         )
         return out

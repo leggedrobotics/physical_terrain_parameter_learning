@@ -187,7 +187,7 @@ class ParamCollection(Serializable):
         update_range_main_graph: float = 5  # 50
         edge_dist_thr_main_graph: float = 0.2  # 0.2
 
-        use_sub_graph: bool = False  # only set to True when the robot is walking reversely to the camera direction, should avoid this case
+        use_sub_graph: bool = True
         edge_dist_thr_sub_graph: float = 0.05
         max_distance_sub_graph: float = 5
         update_range_sub_graph: float = 5
