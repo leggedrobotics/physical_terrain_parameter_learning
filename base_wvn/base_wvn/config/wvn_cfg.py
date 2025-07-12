@@ -175,7 +175,7 @@ class ParamCollection(Serializable):
         w_reco: float = 0.9  # 0.9
         reco_loss_type: str = "mse"  # mse or cosine
 
-        confidence_mode: str = "gmm_1d"  # gmm_1d, gmm_1d_history, or fixed
+        confidence_mode: str = "gmm_1d_history"  # gmm_1d, gmm_1d_history, or fixed
 
     loss: LossParams = LossParams()
 
