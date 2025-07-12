@@ -124,7 +124,7 @@ class ParamCollection(Serializable):
 
         camera_callback_rate: float = 1.0
         supervision_signal_callback_rate: float = 4.0
-        learning_rate: float = 2.0
+        learning_rate: float = 4.0
         logging_rate: float = 1.0
 
     thread: ThreadParams = ThreadParams()
@@ -171,8 +171,8 @@ class ParamCollection(Serializable):
 
     @dataclass
     class LossParams:
-        w_pred: float = 0.9  # 0.1
-        w_reco: float = 0.1  # 0.9
+        w_pred: float = 0.1  # 0.1
+        w_reco: float = 0.9  # 0.9
         reco_loss_type: str = "mse"  # mse or cosine
 
         confidence_mode: str = "gmm_1d"  # gmm_1d, or fixed
@@ -187,7 +187,7 @@ class ParamCollection(Serializable):
         update_range_main_graph: float = 5  # 50
         edge_dist_thr_main_graph: float = 0.2  # 0.2
 
-        use_sub_graph: bool = True
+        use_sub_graph: bool = False
         edge_dist_thr_sub_graph: float = 0.05
         max_distance_sub_graph: float = 5
         update_range_sub_graph: float = 5
@@ -202,7 +202,7 @@ class ParamCollection(Serializable):
 
     @dataclass
     class ModelParams:
-        name: str = "SeperateMLP"
+        name: str = "SimpleMLP"
 
         @dataclass
         class SimpleMlpCfgParams:
