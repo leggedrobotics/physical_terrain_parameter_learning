@@ -32,7 +32,7 @@ class ConfidenceMaskGeneratorFactory:
             return FixedThreshold(
                 # adjustable parameters if needed
                 std_factor=1.0,
-                threshold=0.8,
+                threshold=0.5,
                 method="running_mean",
                 device=device,
             )

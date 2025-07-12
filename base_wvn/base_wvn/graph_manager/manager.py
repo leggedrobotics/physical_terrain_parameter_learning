@@ -576,6 +576,7 @@ class Manager:
             return_dict["total_loss"] = self._loss.item()
             return_dict["loss_reco"] = loss_reco.item()
             return_dict["loss_pred"] = loss_pred.item()
+            return_dict["loss_reco_per_pixel"] = loss_dict["loss_reco_per_pixel"]
 
             return return_dict
         else:

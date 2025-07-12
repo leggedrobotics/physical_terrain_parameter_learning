@@ -59,6 +59,7 @@ class DecoderLightning(pl.LightningModule):
             raise ValueError("xs and ys must have shape of 2")
         res = self.model(xs)
         loss, loss_dict = self.loss_fn((xs, ys), res)
+        self.conf_mask_generator.update(loss_dict["loss_reco_per_pixel"])
         self.log("train_loss", loss)
         self.log("train_reco_loss", loss_dict["loss_reco"])
         self.log("train_phy_loss", loss_dict["loss_pred"])

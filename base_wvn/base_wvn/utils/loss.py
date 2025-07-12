@@ -53,7 +53,11 @@ class PhyLoss(nn.Module):
 
         return (
             loss_final,
-            {"loss_pred": loss_pred.mean(), "loss_reco": loss_reco.mean()},
+            {
+                "loss_pred": loss_pred.mean(),
+                "loss_reco": loss_reco.mean(),
+                "loss_reco_per_pixel": loss_reco,
+            },
         )
 
     def compute_reconstruction_loss(
