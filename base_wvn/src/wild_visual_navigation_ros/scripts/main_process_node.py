@@ -186,7 +186,7 @@ class MainProcess(RosNode):
         self.log("camera_callback", "N/A")
         self.log("prediction_done", 0)
 
-        print("Start waiting for Camera topic being published!")
+        print("Waiting for Camera topic being published!")
         # Camera info
         camera_info_msg: CameraInfo = rospy.wait_for_message(
             self.camera_info_topic, CameraInfo
@@ -239,7 +239,7 @@ class MainProcess(RosNode):
             visual_odom_sub = message_filters.Subscriber(
                 self.visual_odom_topic, Odometry
             )
-            self.world_frame = "map_o3d"
+            self.world_frame = self.param.roscfg.vo_world_frame
             sync = message_filters.ApproximateTimeSynchronizer(
                 [camera_sub, anymal_state_sub, visual_odom_sub],
                 queue_size=200,
@@ -268,20 +268,30 @@ class MainProcess(RosNode):
         self.camera_br = tf2_ros.TransformBroadcaster()
 
         # Results publisher
-        fric_pub = rospy.Publisher("/vd_pipeline/friction", Image, queue_size=10)
-        stiff_pub = rospy.Publisher("/vd_pipeline/stiffness", Image, queue_size=10)
+        fric_pub = rospy.Publisher(
+            self.param.roscfg.masked_dense_friction_prediction_image_topic,
+            Image,
+            queue_size=10,
+        )
+        stiff_pub = rospy.Publisher(
+            self.param.roscfg.masked_dense_stiffness_prediction_image_topic,
+            Image,
+            queue_size=10,
+        )
         info_pub = rospy.Publisher(
-            "/vd_pipeline/camera_info", CameraInfo, queue_size=10
+            self.param.roscfg.prediction_image_camera_info_topic,
+            CameraInfo,
+            queue_size=10,
         )
         channel_pub = rospy.Publisher(
-            "/vd_pipeline/channel_info", ChannelInfo, queue_size=10
+            self.param.roscfg.prediction_image_channel_topic, ChannelInfo, queue_size=10
         )
 
         latest_main_node = rospy.Publisher(
-            "/vd_pipeline/latest_main_node", Marker, queue_size=10
+            self.param.roscfg.main_node_visualization_topic, Marker, queue_size=10
         )
         latest_sub_node = rospy.Publisher(
-            "/vd_pipeline/latest_sub_node", Marker, queue_size=10
+            self.param.roscfg.sub_node_visualization_topic, Marker, queue_size=10
         )
 
         # Fill in handler

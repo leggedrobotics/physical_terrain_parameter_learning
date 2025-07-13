@@ -38,10 +38,8 @@ class RosNode:
         read cfg file and import the parameters
         """
         # TOPIC-REALTED PARAMETERS
-        self.anymal_bag_name = self.param.roscfg.anymal_bag_name
         self.anymal_state_topic = self.param.roscfg.anymal_state_topic
         self.feet_list = self.param.roscfg.feet_list
-        self.camera_bag_name = self.param.roscfg.camera_bag_name
         self.camera_topic = self.param.roscfg.camera_topic
         self.phy_decoder_input_topic = self.param.roscfg.phy_decoder_input_topic
         self.camera_info_topic = self.param.roscfg.camera_info_topic
@@ -52,10 +50,6 @@ class RosNode:
         self.base_frame = self.param.roscfg.base_frame
 
         # Robot dimensions
-        self.robot_length = self.param.roscfg.robot_length
-        self.robot_height = self.param.roscfg.robot_height
-        self.robot_width = self.param.roscfg.robot_width
-        self.robot_max_velocity = self.param.roscfg.robot_max_velocity
         self.foot_radius = self.param.roscfg.foot_radius
 
         # THREAD PARAMETERS

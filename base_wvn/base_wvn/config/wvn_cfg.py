@@ -39,17 +39,22 @@ class ParamCollection(Serializable):
     class RosParams:
         """Parameters for ROS."""
 
-        anymal_bag_name: str = "lpc"
-        anymal_state_topic: str = "/anymal/state_estimator/anymal_state"
         feet_list: List[str] = field(
             default_factory=lambda: ["LF_FOOT", "RF_FOOT", "LH_FOOT", "RH_FOOT"]
         )
+
+        anymal_state_topic: str = "/anymal/state_estimator/anymal_state"
         phy_decoder_input_topic: str = "/anymal/locomotion_policy/debug_info"
         phy_decoder_temp_topic: str = "/phy_decoder/temp_out"
         phy_decoder_output_topic: str = "/vd_pipeline/phy_decoder_out"
         supervision_label_visualization_topic: str = "/vd_pipeline/visualization_planes"
+        masked_dense_friction_prediction_image_topic: str = "/vd_pipeline/friction"
+        masked_dense_stiffness_prediction_image_topic: str = "/vd_pipeline/stiffness"
+        prediction_image_camera_info_topic: str = "/vd_pipeline/camera_info"
+        prediction_image_channel_topic: str = "/vd_pipeline/channel_info"
+        main_node_visualization_topic: str = "/vd_pipeline/latest_main_node"
+        sub_node_visualization_topic: str = "/vd_pipeline/latest_sub_node"
 
-        camera_bag_name: str = "jetson"
         camera_topic: str = "/wide_angle_camera_front/image_color_rect/compressed"
         camera_info_topic: str = "/wide_angle_camera_front/camera_info"
 
@@ -60,10 +65,6 @@ class ParamCollection(Serializable):
         world_frame: str = "odom"
         base_frame: str = "base"
 
-        robot_length: float = 0.930
-        robot_height: float = 0.890
-        robot_width: float = 0.530
-        robot_max_velocity: float = 1.2
         foot_radius: float = 0.03269
 
         # {child}_in_{parent}
@@ -109,8 +110,6 @@ class ParamCollection(Serializable):
                 [0.0, 0.0, 0.0, 1.0],
             ]
         )
-
-        pass
 
     roscfg: RosParams = RosParams()
 
