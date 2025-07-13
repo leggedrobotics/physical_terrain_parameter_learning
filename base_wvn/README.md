@@ -1,6 +1,14 @@
 #  Self-supervised Visual Decoder Learning
 This code is for online training of the visual decoder to predict the physical terrain paramters estimated by the physical decoder from images. The pipeline is based on the previous repo from "[Fast Traversability Estimation for Wild Visual Navigation](https://github.com/leggedrobotics/wild_visual_navigation)".
 
+## Improvements beyond the paper
+1. **New Confidence mask generator (gmm_1d_history)**: Maintaining a short history of reconstruction loss of the footholds (they are absolute confident area), to avoid arbitrary confidence mask splitting when transitioning to a new scene. It is now enabled by default.
+
+2. **New visual decoder (SeperateMLP)**: Seperating the loss reconstruction and physical value prediction as two independent MLPs, which stabilizes the training. It is now enabled by default.
+
+## Compatibility with [GrandTour dataset](https://grand-tour.leggedrobotics.com/)
+This code is compatible with the GrandTour dataset, which is the largest legged robotic dataset collected using an ANYbotics ANYmal D quadruped robot equipped with Boxi, a state-of-the-art, fully open-source sensor payload. Please follow the [instructions](https://github.com/leggedrobotics/grand_tour_dataset) to install the dataset. 
+
 ## Installation
 **Attention**: Please follow the installation order exactly as below. Otherwise, you may encounter some errors. Here we use mamba for virtual environment management with **Python 3.9**
 ### Install robostack ros first:
@@ -33,9 +41,15 @@ export NEPTUNE_PROJECT="your_neptune_username/your_neptune_project_name"
 pip install -e .
 ```
 
+### (Optional) Install the package from GrandTour dataset after finishing their [installation](https://github.com/leggedrobotics/grand_tour_dataset):
+```bash
+ln -s ~/git/grand_tour_dataset/examples_ros1 ~/physical_terrain_parameter_learning/base_wvn/src/  # if you need to avoid overlaying workspaces
+```
+
 ### Build the base_wvn with ROS:
 ```bash
 catkin build wild_visual_navigation_ros
+catkin build examples_ros1                     # (Optional) if you need to avoid overlaying workspaces for using GrandTour dataset
 source devel/setup.bash
 export PATH="$CONDA_PREFIX/bin:$PATH"          # (Optional) if you are using conda environment and experiencing missing python path after sourcing the workspace 
 ```
@@ -63,7 +77,12 @@ For different configs, please refer to the code and config file.
 ```bash
 ./src/wild_visual_navigation_ros/scripts/play_base_wvn.sh  # start all base_wvn nodes
 
-roslaunch wild_visual_navigation_ros play.launch # (Optional) start rosbag playing, you can train online with rosbag playing, but you need to make sure the rosbag path is set to your own ones in `play_rosbag.sh` 
+# (Optional.1) start rosbag playing, you can train online with rosbag playing, but you need to make sure the rosbag path is set to your own ones in `play_rosbag.sh` 
+roslaunch wild_visual_navigation_ros play.launch 
+
+# (Optional.2) start rosbag playing in GrandTour dataset
+roslaunch grand_tour_ros1 lidars.launch
+rosrun grand_tour_ros1 rosbag_play.sh *.bag # after cd into the folder containing the bag files
 ```
 
 ### Tmux usage
@@ -78,7 +97,7 @@ You need to make sure the rosbag path is set to your own ones in `play_rosbag.sh
 ```bash
 ./src/wild_visual_navigation_ros/scripts/play_base_wvn.sh  # start all base_wvn nodes
 
-roslaunch wild_visual_navigation_ros play.launch # start rosbag playing
+roslaunch wild_visual_navigation_ros play.launch # start rosbag playing or using the rosbag playing in GrandTour dataset
 
 # Follow Tmux usage and use `Ctrl+C` to stop the recording.
 ```
