@@ -45,25 +45,25 @@ class SupervisionLabelBuilder(RosNode):
         """
 
         # Anymal state subscriber
-        print("Start waiting for AnymalState topic being published!")
+        print("Waiting for AnymalState topic being published!")
         rospy.wait_for_message(self.anymal_state_topic, AnymalState)
         anymal_state_sub = message_filters.Subscriber(
             self.anymal_state_topic, AnymalState
         )
 
-        print("Start waiting for Phy_temp_topic topic being published!")
+        print("Waiting for Phy_temp_topic topic being published!")
         rospy.wait_for_message(self.phy_temp_topic, PhyDecoderOutput)
         incomplete_label_sub = message_filters.Subscriber(
             self.phy_temp_topic, PhyDecoderOutput
         )
 
         if self.use_vo:
-            print("Start waiting for visual odom topic being published!")
+            print("Waiting for visual odom topic being published!")
             rospy.wait_for_message(self.visual_odom_topic, Odometry)
             visual_odom_sub = message_filters.Subscriber(
                 self.visual_odom_topic, Odometry
             )
-            self.world_frame = "map_o3d"
+            self.world_frame = self.param.roscfg.vo_world_frame
 
             self.sub = message_filters.ApproximateTimeSynchronizer(
                 [anymal_state_sub, incomplete_label_sub, visual_odom_sub],
@@ -71,7 +71,6 @@ class SupervisionLabelBuilder(RosNode):
                 slop=0.1,
                 allow_headerless=False,
             )
-            print("Current ros time is: ", rospy.get_time())
 
             self.sub.registerCallback(self.callback)
         else:
@@ -82,16 +81,20 @@ class SupervisionLabelBuilder(RosNode):
                 allow_headerless=False,
             )
 
-            print("Current ros time is: ", rospy.get_time())
-
             self.sub.registerCallback(self.callback_no_vo)
 
+        print(
+            "OK: Supervision label builder begins to publish, and current ros time is: ",
+            rospy.get_time(),
+        )
         # Results publisher
         self.phy_decoder_pub = rospy.Publisher(
-            "/vd_pipeline/phy_decoder_out", PhyDecoderOutput, queue_size=10
+            self.param.roscfg.phy_decoder_output_topic, PhyDecoderOutput, queue_size=10
         )
         self.marker_array_pub = rospy.Publisher(
-            "/vd_pipeline/visualization_planes", MarkerArray, queue_size=10
+            self.param.roscfg.supervision_label_visualization_topic,
+            MarkerArray,
+            queue_size=10,
         )
 
     def callback_no_vo(

@@ -40,25 +40,21 @@ class ParamCollection(Serializable):
         """Parameters for ROS."""
 
         anymal_bag_name: str = "lpc"
-        anymal_state_topic: str = "/state_estimator/anymal_state"
+        anymal_state_topic: str = "/anymal/state_estimator/anymal_state"
         feet_list: List[str] = field(
             default_factory=lambda: ["LF_FOOT", "RF_FOOT", "LH_FOOT", "RH_FOOT"]
         )
-        phy_decoder_input_topic: str = "/debug_info"
+        phy_decoder_input_topic: str = "/anymal/locomotion_policy/debug_info"
         phy_decoder_temp_topic: str = "/phy_decoder/temp_out"
         phy_decoder_output_topic: str = "/vd_pipeline/phy_decoder_out"
+        supervision_label_visualization_topic: str = "/vd_pipeline/visualization_planes"
 
         camera_bag_name: str = "jetson"
-        # camera_topic: str='/hdr_camera/image_raw/compressed'
-        # camera_info_topic: str='/hdr_camera/camera_info'
-        # camera_topic: str='/v4l2_camera/image_raw_throttle/compressed'
-        # camera_info_topic: str='/v4l2_camera/camera_info_throttle'
-        camera_topic: str = "/wide_angle_camera_rear/image_color_rect/compressed"
-        camera_info_topic: str = "/wide_angle_camera_rear/camera_info"
-        # camera_topic: str = "/wide_angle_camera_front/image_color_rect/compressed"
-        # camera_info_topic: str = "/wide_angle_camera_front/camera_info"
+        camera_topic: str = "/wide_angle_camera_front/image_color_rect/compressed"
+        camera_info_topic: str = "/wide_angle_camera_front/camera_info"
 
-        use_vo: bool = True
+        use_vo: bool = False
+        vo_world_frame: str = "map_o3d"
         visual_odom_topic: str = "/open3d_slam/scan2map_odometry"
 
         world_frame: str = "odom"
