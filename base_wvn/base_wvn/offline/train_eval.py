@@ -75,6 +75,7 @@ def train(param: ParamCollection) -> None:
             "step": model.step,
             "model_state_dict": model.model.state_dict(),
             "phy_loss_state_dict": model.loss_fn.state_dict(),
+            "conf_mask_generator_state_dict": model.conf_mask_generator.state_dict(),
             "loss": model.val_loss.item(),
         },
         os.path.join(ckpt_parent_folder, model.time, "last_checkpoint.pt"),
@@ -100,6 +101,9 @@ def evaluate(param: ParamCollection) -> Optional[Dict[str, float]]:
     checkpoint = torch.load(checkpoint_path)
     model.model.load_state_dict(checkpoint["model_state_dict"])
     model.loss_fn.load_state_dict(checkpoint["phy_loss_state_dict"])
+    model.conf_mask_generator.load_state_dict(
+        checkpoint["conf_mask_generator_state_dict"]
+    )
     model.step = checkpoint["step"]
     model.time = checkpoint["time"] if not param.offline.use_online_ckpt else "online"
     model.val_loss = checkpoint["loss"]

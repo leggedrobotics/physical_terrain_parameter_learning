@@ -41,7 +41,7 @@ class ConfidenceMaskGeneratorFactory:
             return GMM1DHistory(
                 num_components=2,
                 deivice=device,
-                max_history_length=10,  # adjustable
+                max_history_length=20,  # adjustable
             )
         else:
             raise ValueError(f"Confidence mask generator mode {mode} not implemented")
@@ -278,6 +278,7 @@ class GMM1DHistory(MaskGenerator):
         super(GMM1DHistory, self).__init__()
         self.num_components = num_components
         self.device = deivice
+        self.max_history_length = max_history_length
         self.loss_history_raw = deque(
             maxlen=max_history_length
         )  # keep the last few loss Tensors
@@ -291,7 +292,23 @@ class GMM1DHistory(MaskGenerator):
 
     @property
     def loss_history(self) -> torch.Tensor:
-        return torch.cat(list(self.loss_history_raw), dim=0)
+        return (
+            torch.cat(list(self.loss_history_raw), dim=0)
+            if len(self.loss_history_raw) > 0
+            else torch.tensor([])
+        )
+
+    def state_dict(self):
+        base = super().state_dict()
+        base["loss_history_raw"] = list(self.loss_history_raw)
+        base["max_history_length"] = self.max_history_length
+        return base
+
+    def load_state_dict(self, state_dict: Dict[str, torch.Tensor]) -> None:
+        self.loss_history_raw = deque(
+            state_dict["loss_history_raw"], maxlen=state_dict["max_history_length"]
+        )
+        self.max_history_length = state_dict["max_history_length"]
 
     def get_confidence_mask_from_recon_loss(self, loss: torch.Tensor) -> torch.Tensor:
         """

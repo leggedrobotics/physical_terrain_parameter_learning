@@ -11,7 +11,6 @@ Main node to process ros messages, publish the relevant topics, train the model.
 from base_wvn.utils import (
     FeatureExtractor,
     ImageProjector,
-    ConfidenceMaskGeneratorFactory,
     MaskedPredictionData,
     plot_pred_w_overlay,
     plot_overlay_image,
@@ -62,9 +61,6 @@ class MainProcess(RosNode):
         self.today = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
         self.feat_extractor = FeatureExtractor(self.param)
-        self.conf_mask_generator = ConfidenceMaskGeneratorFactory.create(
-            mode=self.param.loss.confidence_mode, device=self.device
-        )
 
         # Init graph manager
         self.manager = Manager(param=self.param)
@@ -553,9 +549,7 @@ class MainProcess(RosNode):
 
             if not self.param.general.online_training:
                 self.manager.pause_learning = True
-            res = self.manager.train()
-            if "loss_reco_per_pixel" in res:
-                self.conf_mask_generator.update(res["loss_reco_per_pixel"])
+            self.manager.train()
 
             self.log("training_step", self.manager.step)
 
@@ -597,11 +591,9 @@ class MainProcess(RosNode):
                 "The features in node is not a dict, only support dict now!"
             )
         res: MaskedPredictionData = (
-            self.conf_mask_generator.get_confidence_masked_prediction_from_img(
+            self.manager.get_confidence_masked_prediction_from_img(
                 trans_img=trans_img,
                 compressed_feats=feats_input,
-                model=self.manager._model,
-                loss_fn=self.manager._phy_loss,
             )
         )
         fric_vis_imgs, stiff_vis_imgs = plot_pred_w_overlay(

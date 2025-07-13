@@ -11,14 +11,19 @@ import pickle
 import torch
 import torchvision.transforms as transforms
 from pytictac import accumulate_time, ClassContextTimer
-from typing import List
+from typing import List, Tuple, Dict
 from .graphs import (
     BaseGraph,
     DistanceWindowGraph,
     MaxElementsGraph,
 )
 from .nodes import MainNode, SubNode
-from ..utils import ImageProjector, PhyLoss
+from ..utils import (
+    ImageProjector,
+    PhyLoss,
+    ConfidenceMaskGeneratorFactory,
+    MaskedPredictionData,
+)
 from ..model import VD_dataset, get_model
 from ..config.wvn_cfg import ParamCollection
 
@@ -96,6 +101,9 @@ class Manager:
             reco_loss_type=loss_params.reco_loss_type,
         ).to(self._device)
         self._loss = torch.tensor([torch.inf])
+        self._conf_mask_generator = ConfidenceMaskGeneratorFactory.create(
+            mode=self._param.loss.confidence_mode, device=self._device
+        )
         self._step = 0
 
         if self._param.general.resume_training:
@@ -495,6 +503,7 @@ class Manager:
                     "loss": self._loss.item()
                     if isinstance(self._loss, torch.Tensor)
                     else self._loss,
+                    "conf_mask_generator_state_dict": self._conf_mask_generator.state_dict(),
                 },
                 checkpoint_file,
             )
@@ -517,6 +526,9 @@ class Manager:
             self._model.load_state_dict(checkpoint["model_state_dict"])
             self._optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
             self._phy_loss.load_state_dict(checkpoint["phy_loss_state_dict"])
+            self._conf_mask_generator.load_state_dict(
+                checkpoint["conf_mask_generator_state_dict"]
+            )
             self._step = checkpoint["step"]
             self._loss = checkpoint["loss"]
 
@@ -562,6 +574,9 @@ class Manager:
                     self._optimizer.zero_grad()
                     self._loss.backward()
                     self._optimizer.step()
+
+                    # Update the confidence mask generator
+                    self._conf_mask_generator.update(loss_dict["loss_reco_per_pixel"])
             # Print losses
             loss_reco = loss_dict["loss_reco"]
             loss_pred = loss_dict["loss_pred"]
@@ -576,9 +591,21 @@ class Manager:
             return_dict["total_loss"] = self._loss.item()
             return_dict["loss_reco"] = loss_reco.item()
             return_dict["loss_pred"] = loss_pred.item()
-            return_dict["loss_reco_per_pixel"] = loss_dict["loss_reco_per_pixel"]
 
             return return_dict
         else:
             return_dict["total_loss"] = -1
             return return_dict
+
+    def get_confidence_masked_prediction_from_img(
+        self,
+        trans_img: torch.Tensor,
+        compressed_feats: Dict[Tuple[float, float], torch.Tensor],
+    ) -> MaskedPredictionData:
+        """process the original_img and return the phy_mask in resized img shape(non-confident--> nan)"""
+        return self._conf_mask_generator.get_confidence_masked_prediction_from_img(
+            trans_img=trans_img,
+            compressed_feats=compressed_feats,
+            model=self._model,
+            loss_fn=self._phy_loss,
+        )
