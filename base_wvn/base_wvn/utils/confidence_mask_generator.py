@@ -298,7 +298,7 @@ class GMM1DHistory(MaskGenerator):
             else torch.tensor([])
         )
 
-    def state_dict(self):
+    def state_dict(self, destination=None, prefix="", keep_vars=False):
         base = super().state_dict()
         base["loss_history_raw"] = list(self.loss_history_raw)
         base["max_history_length"] = self.max_history_length
