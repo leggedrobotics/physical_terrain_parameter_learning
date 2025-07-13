@@ -433,6 +433,11 @@ class MainProcess(RosNode):
             # 2. publish the label image overlay on vis_node, very slow so commented
             # self.visualize_self_supervision_label_image_overlay()
 
+            # 3. publish the masked dense prediction, using the img received in the callback
+            header = Header()
+            header.stamp = rospy.Time.from_sec(ts)
+            self.pub_node_prediction(main_node, header=header, ts=ts)
+
             self.system_events["camera_callback_state"] = {
                 "time": rospy.get_time(),
                 "value": "executed successfully",
@@ -562,16 +567,6 @@ class MainProcess(RosNode):
             self.manager.train()
 
             self.log("training_step", self.manager.step)
-
-            step_time = ts
-
-            # ----- visualization -----
-            # 1. publish the masked dense prediction, using the img in the _vis_main_node
-            header = Header()
-            header.stamp = rospy.Time.from_sec(step_time)
-            self.pub_node_prediction(
-                self.manager._vis_main_node, header=header, ts=step_time
-            )
 
             i += 1
 

@@ -41,7 +41,7 @@ class ConfidenceMaskGeneratorFactory:
             return GMM1DHistory(
                 num_components=2,
                 deivice=device,
-                max_history_length=20,  # adjustable
+                max_history_length=10,  # adjustable
             )
         else:
             raise ValueError(f"Confidence mask generator mode {mode} not implemented")

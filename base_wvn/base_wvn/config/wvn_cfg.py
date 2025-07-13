@@ -125,7 +125,7 @@ class ParamCollection(Serializable):
         device: str = "cuda"
         mode: str = "debug"
         palette: str = "husl"
-        seed: int = 42
+        seed: int = 422
 
     run: RunParams = RunParams()
 
@@ -174,7 +174,7 @@ class ParamCollection(Serializable):
 
         max_node_number: int = 40
         update_range_main_graph: float = 5  # 50
-        edge_dist_thr_main_graph: float = 0.2  # 0.2
+        edge_dist_thr_main_graph: float = 1.0  # 0.2
 
         use_sub_graph: bool = False
         edge_dist_thr_sub_graph: float = 0.05
