@@ -12,10 +12,8 @@ Attention: this use an old stable version of the PHY-decoder.
 from physical_decoder import DeploymentWrapper
 from ros_node import RosNode
 
-from wild_visual_navigation_msgs.msg import AnymalState
-from std_msgs.msg import Float32, Float32MultiArray
+from signal_logger_msgs.msg import Float32MultiArrayStamped
 from wild_visual_navigation_msgs.msg import PhyDecoderOutput
-import message_filters
 import rospy
 import torch
 import traceback
@@ -41,50 +39,34 @@ class PhysicalDecoderNode(RosNode):
         start ros subscribers and publishers and filter/process topics
         """
 
-        # Anymal state subscriber
-        print("Start waiting for AnymalState topic being published!")
-        rospy.wait_for_message(self.anymal_state_topic, AnymalState)
-        anymal_state_sub = message_filters.Subscriber(
-            self.anymal_state_topic, AnymalState
+        print("Waiting for Phy_decoder_input topic being published!")
+        rospy.wait_for_message(self.phy_decoder_input_topic, Float32MultiArrayStamped)
+
+        sub = rospy.Subscriber(
+            self.phy_decoder_input_topic,
+            Float32MultiArrayStamped,
+            self.callback,
+            queue_size=1,
         )
 
-        print("Start waiting for Phy_decoder_input topic being published!")
-        rospy.wait_for_message(self.phy_decoder_input_topic, Float32MultiArray)
-        phy_decoder_input_sub = message_filters.Subscriber(
-            self.phy_decoder_input_topic, Float32MultiArray
+        print(
+            "OK: Physical decoders begin to publish, and current ros time is: ",
+            rospy.get_time(),
         )
-
-        # Here we only use anymal_state to get timestamp for headerless phy_decoder_input
-        self.sub = message_filters.ApproximateTimeSynchronizer(
-            [anymal_state_sub, phy_decoder_input_sub],
-            queue_size=100,
-            slop=0.1,
-            allow_headerless=True,
-        )
-
-        print("Current ros time is: ", rospy.get_time())
-
-        self.sub.registerCallback(self.callback)
 
         # Results publisher
         self.phy_decoder_pub = rospy.Publisher(
-            self.phy_temp_topic, PhyDecoderOutput, queue_size=10
+            self.phy_temp_topic, PhyDecoderOutput, queue_size=1
         )
 
-    def callback(
-        self, anymal_state_msg: AnymalState, phy_decoder_input_msg: Float32MultiArray
-    ):
-        """
-        callback function for the anymal state subscriber
-        """
-
+    def callback(self, phy_decoder_input_msg: Float32MultiArrayStamped):
         self.system_events["callback_received"] = {
             "time": rospy.get_time(),
             "value": "message received",
         }
         msg = PhyDecoderOutput()
-        msg.header.stamp = anymal_state_msg.header.stamp
-        msg.header.seq = anymal_state_msg.header.seq
+        msg.header.stamp = phy_decoder_input_msg.header.stamp
+        msg.header.seq = phy_decoder_input_msg.header.seq
         # msg.header.frame_id shall be determined later in builder
 
         try:
@@ -92,7 +74,7 @@ class PhysicalDecoderNode(RosNode):
             Fric/Stiff-Decoder input topics & prediction
             """
             phy_decoder_input = torch.tensor(
-                phy_decoder_input_msg.data, device=self.device
+                phy_decoder_input_msg.matrix.data, device=self.device
             ).unsqueeze(0)
             fric_pred, stiff_pred = self.physical_decoder.predict(phy_decoder_input)
             # pub fric and stiff together
