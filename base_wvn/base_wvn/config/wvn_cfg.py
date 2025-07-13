@@ -55,8 +55,8 @@ class ParamCollection(Serializable):
         main_node_visualization_topic: str = "/vd_pipeline/latest_main_node"
         sub_node_visualization_topic: str = "/vd_pipeline/latest_sub_node"
 
-        camera_topic: str = "/wide_angle_camera_front/image_color_rect/compressed"
-        camera_info_topic: str = "/wide_angle_camera_front/camera_info"
+        camera_topic: str = "/boxi/hdr/front/image_raw/compressed"
+        camera_info_topic: str = "/boxi/hdr/front/camera_info"
 
         use_vo: bool = False
         vo_world_frame: str = "map_o3d"
@@ -67,24 +67,18 @@ class ParamCollection(Serializable):
 
         foot_radius: float = 0.03269
 
+        # the boxi hdr_front camera in the GrandTour dataset
         # {child}_in_{parent}
         front_hdr_camera_in_base = np.array(
             [
-                [-3.63509055e-06, 1.43680318e-01, 9.89624154e-01, 3.53700000e-01],
-                [1.00000000e00, -1.34923184e-11, 3.67320510e-06, 0.00000000e00],
-                [5.27780629e-07, 9.89624154e-01, -1.43680318e-01, 1.63400000e-01],
+                [-7.27060062e-03, -1.86277520e-04, 9.99973551e-01, 4.45987135e-01],
+                [-9.99962826e-01, 4.63672980e-03, -7.26965889e-03, 1.00508792e-02],
+                [-4.63525299e-03, -9.99989233e-01, -2.19982406e-04, 1.77598200e-01],
                 [0.00000000e00, 0.00000000e00, 0.00000000e00, 1.00000000e00],
             ]
         )
 
-        rear_hdr_camera_in_base = np.array(
-            [
-                [3.63509049e-06, -1.43680305e-01, -9.89624138e-01, -3.53700000e-01],
-                [-9.99999820e-01, 1.34923159e-11, -3.67320444e-06, 0.00000000e00],
-                [5.27780582e-07, 9.89623958e-01, -1.43680305e-01, 1.63400000e-01],
-                [0.00000000e00, 0.00000000e00, 0.00000000e00, 1.00000000e00],
-            ]
-        )
+        # following cams are not used in GrandTour dataset
         rear_wide_angle_camera_in_base = np.array(
             [
                 [1.22464680e-16, -1.11022302e-16, -1.00000000e00, -4.04490000e-01],

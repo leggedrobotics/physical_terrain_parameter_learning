@@ -73,13 +73,11 @@ class RosNode:
 
         self.verbose = self.param.general.verbose
 
-        if "v4l2" in self.camera_topic:
-            self.camera_in_base = self.param.roscfg.rear_hdr_camera_in_base
-        elif "wide_angle" in self.camera_topic and "rear" in self.camera_topic:
+        if "wide_angle" in self.camera_topic and "rear" in self.camera_topic:
             self.camera_in_base = self.param.roscfg.rear_wide_angle_camera_in_base
         elif "wide_angle" in self.camera_topic and "front" in self.camera_topic:
             self.camera_in_base = self.param.roscfg.front_wide_angle_camera_in_base
-        elif "hdr" in self.camera_topic:
+        elif "hdr" in self.camera_topic and "front" in self.camera_topic:
             self.camera_in_base = self.param.roscfg.front_hdr_camera_in_base
         self.lidar_in_base = self.param.roscfg.lidar_in_base
 
