@@ -176,7 +176,7 @@ class ParamCollection(Serializable):
         update_range_main_graph: float = 5  # 50
         edge_dist_thr_main_graph: float = 1.0  # 0.2
 
-        use_sub_graph: bool = False
+        use_sub_graph: bool = False  # set to True to allow label projection triggered also when a new mainnode is added, very useful when walking in the opposite direction of the camera
         edge_dist_thr_sub_graph: float = 0.05
         max_distance_sub_graph: float = 5
         update_range_sub_graph: float = 5
