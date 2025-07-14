@@ -378,7 +378,9 @@ class MainProcess(RosNode):
                 )
 
             # prepare image
-            img_torch = rc.ros_image_to_torch(img_msg, device=self.device)
+            img_torch = rc.ros_image_to_torch(
+                img_msg, device=self.device, desired_encoding="rgb8"
+            )
             img_torch = img_torch[None]
             transformed_img, compressed_feats = self.feat_extractor.extract(img_torch)
 

@@ -98,19 +98,35 @@ def ros_image_to_torch(
     desired_encoding: str = "rgb8",
     device: str = "cpu",
 ) -> torch.Tensor:
-    if type(ros_img).__name__ == "_sensor_msgs__Image" or isinstance(ros_img, Image):
+    """
+    Converts a ROS Image or CompressedImage to a torch.Tensor.
+
+    Args:
+        ros_img: ROS Image or CompressedImage message
+        desired_encoding: Desired color space for output ('rgb8', 'bgr8', etc.)
+        device: Device for the output tensor ('cpu' or 'cuda')
+
+    Returns:
+        torch.Tensor: Image tensor in shape [C, H, W] and float32 format
+    """
+    # === Handle raw Image ===
+    if isinstance(ros_img, Image):
         np_image = CV_BRIDGE.imgmsg_to_cv2(ros_img, desired_encoding=desired_encoding)
 
-    elif type(ros_img).__name__ == "_sensor_msgs__CompressedImage" or isinstance(
-        ros_img, CompressedImage
-    ):
-        np_arr = np.fromstring(ros_img.data, np.uint8)
-        np_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-        if "bgr" in ros_img.format:
-            np_image = cv2.cvtColor(np_image, cv2.COLOR_BGR2RGB)
+    # === Handle CompressedImage ===
+    elif isinstance(ros_img, CompressedImage):
+        np_arr = np.frombuffer(ros_img.data, np.uint8)
+        np_image = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)  # always BGR by OpenCV
 
+        # Convert to RGB only if requested
+        if desired_encoding.lower().startswith("rgb"):
+            np_image = cv2.cvtColor(np_image, cv2.COLOR_BGR2RGB)
+        elif desired_encoding.lower().startswith("bgr"):
+            pass  # No conversion needed for BGR
+        else:
+            raise ValueError(f"Unsupported encoding: {desired_encoding}")
     else:
-        raise ValueError("Image message type is not implemented.")
+        raise TypeError(f"Unsupported message type: {type(ros_img)}")
 
     return TO_TENSOR(np_image).to(device)
 
@@ -119,13 +135,10 @@ def torch_to_ros_image(
     torch_img: torch.Tensor, desired_encoding: str = "rgb8"
 ) -> Image:
     """
-
     Args:
         torch_img (torch.tensor, shape=(C,H,W)): Image to convert to ROS message
         desired_encoding (str, optional): _description_. Defaults to "rgb8".
 
-    Returns:
-        _type_: _description_
     """
 
     np_img = np.array(TO_PIL_IMAGE(torch_img.cpu()))
@@ -135,13 +148,10 @@ def torch_to_ros_image(
 
 def numpy_to_ros_image(np_img: np.ndarray, desired_encoding: str = "rgb8") -> Image:
     """
-
     Args:
         np_img (np.array): Image to convert to ROS message
         desired_encoding (str, optional): _description_. Defaults to "rgb8".
 
-    Returns:
-        _type_: _description_
     """
     ros_image = CV_BRIDGE.cv2_to_imgmsg(np_img, encoding=desired_encoding)
     return ros_image

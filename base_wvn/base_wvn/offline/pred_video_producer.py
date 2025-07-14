@@ -37,7 +37,9 @@ class RosBagPredictionVideoProducer:
                 if progress_bar.n >= messages_to_process:
                     break
                 # Convert ROS Image message to OpenCV image
-                img_torch = rc.ros_image_to_torch(msg, device=self.param.run.device)
+                img_torch = rc.ros_image_to_torch(
+                    msg, device=self.param.run.device, desired_encoding="rgb8"
+                )
                 img = img_torch[None]
                 trans_img, compressed_feat = self.model.feat_extractor.extract(img)
                 res = self.model.conf_mask_generator.get_confidence_masked_prediction_from_img(
