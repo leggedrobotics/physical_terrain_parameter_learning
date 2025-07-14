@@ -156,9 +156,9 @@ class FixedThreshold(MaskGenerator):
         self.std_factor = std_factor
         self.threshold = threshold
 
-        mean = torch.zeros(1, dtype=torch.float32)
-        var = torch.ones(1, dtype=torch.float32)
-        std = torch.ones(1, dtype=torch.float32)
+        mean = torch.zeros(1, dtype=torch.float32, device=self.device)
+        var = torch.ones(1, dtype=torch.float32, device=self.device)
+        std = torch.ones(1, dtype=torch.float32, device=self.device)
         self.mean = torch.nn.Parameter(mean, requires_grad=False)
         self.var = torch.nn.Parameter(var, requires_grad=False)
         self.std = torch.nn.Parameter(std, requires_grad=False)
