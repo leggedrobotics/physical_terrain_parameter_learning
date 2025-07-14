@@ -65,15 +65,21 @@ export NEPTUNE_PROJECT="your_neptune_username/your_neptune_project_name"
 pip install -e .
 ```
 
-### (Optional) Install the package from GrandTour dataset after finishing their [installation](https://github.com/leggedrobotics/grand_tour_dataset):
+### (Optional) Install and Build the package from GrandTour dataset after finishing their [Git Procedure](https://github.com/leggedrobotics/grand_tour_dataset?tab=readme-ov-file#clone-and-link-submodules):
 ```bash
 ln -s ~/git/grand_tour_dataset/examples_ros1 ~/physical_terrain_parameter_learning/base_wvn/src/  # if you need to avoid overlaying workspaces
+
+# build the grand_tour_ros1 package first
+catkin init
+catkin config --extend /opt/ros/noetic
+catkin config --cmake-args -DCMAKE_BUILD_TYPE=RelWithDebInfo
+catkin build grand_tour_ros1
+source devel/setup.bash
 ```
 
 ### Build the base_wvn with ROS:
 ```bash
 catkin build wild_visual_navigation_ros
-catkin build examples_ros1                     # (Optional) if you need to avoid overlaying workspaces for using GrandTour dataset
 source devel/setup.bash
 export PATH="$CONDA_PREFIX/bin:$PATH"          # (Optional) if you are using conda environment and experiencing missing python path after sourcing the workspace 
 ```
