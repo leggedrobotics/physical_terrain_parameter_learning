@@ -9,32 +9,37 @@ This code is for online training of the visual decoder to predict the physical t
 ## Compatibility with [GrandTour dataset](https://grand-tour.leggedrobotics.com/)
 This code is compatible with the GrandTour dataset, which is the largest legged robotic dataset collected using an ANYbotics ANYmal D quadruped robot equipped with Boxi, a state-of-the-art, fully open-source sensor payload. Please follow the [instructions](https://github.com/leggedrobotics/grand_tour_dataset) to install the dataset. 
 
-Here we showcase three examples of our online training pipeline on the GrandTour dataset. The videos are recorded live during the online training:
+Here we showcase three examples of our online training pipeline on the GrandTour dataset. The videos are recorded live during the online training. Within each masked dense prediction frame, a deeper blue color represents a higher predicted friction value:
 
 <div align="center" style="display: flex; justify-content: center; gap: 20px;">
 
   <div style="text-align: center;">
-    <video width="300" controls>
-      <source src="../.docs/ICE-1.mp4" type="video/mp4">
-    </video>
-    <div><b>ICE-1: Walk/Slip on ice</b></div>
+    <img src="../.docs/ICE-1.gif" width="300" />
+    <div>
+      <b>ICE-1: Walk/Slip on ice</b><br />
+      <i>Low friction</i>
+    </div>
   </div>
 
   <div style="text-align: center;">
-    <video width="300" controls>
-      <source src="../.docs/Forest_ALB-3.mp4" type="video/mp4">
-    </video>
-    <div><b>ALB-3: Walk in forest</b></div>
+    <img src="../.docs/Forest_ALB-3.gif" width="300" />
+    <div>
+      <b>ALB-3: Walk in forest</b><br />
+      <i>Mid-High friction</i>
+    </div>
   </div>
 
   <div style="text-align: center;">
-    <video width="300" controls>
-      <source src="../.docs/Industry_ARC-1.mp4" type="video/mp4">
-    </video>
-    <div><b>ARC-1: Walk in industrial scenes</b></div>
+    <img src="../.docs/Industry_ARC-1.gif" width="300" />
+    <div>
+      <b>ARC-1: Walk in industrial scenes</b><br />
+      <i>Mid-High friction</i>
+    </div>
   </div>
 
 </div>
+
+
 
 ## Installation
 **Attention**: Please follow the installation order exactly as below. Otherwise, you may encounter some errors. Here we use mamba for virtual environment management with **Python 3.9**
