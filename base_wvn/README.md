@@ -11,33 +11,25 @@ This code is compatible with the GrandTour dataset, which is the largest legged 
 
 Here we showcase three examples of our online training pipeline on the GrandTour dataset. The videos are recorded live during the online training. Within each masked dense prediction frame, a deeper blue color represents a higher predicted friction value:
 
-<div align="center" style="display: flex; justify-content: center; gap: 20px;">
-
-  <div style="text-align: center;">
-    <img src="../.docs/ICE-1.gif" width="300" />
-    <div>
+<table align="center">
+  <tr>
+    <td align="center">
+      <img src="../.docs/ICE-1.gif" width="300" /><br />
       <b>ICE-1: Walk/Slip on ice</b><br />
       <i>Low friction</i>
-    </div>
-  </div>
-
-  <div style="text-align: center;">
-    <img src="../.docs/Forest_ALB-3.gif" width="300" />
-    <div>
+    </td>
+    <td align="center">
+      <img src="../.docs/Forest_ALB-3.gif" width="300" /><br />
       <b>ALB-3: Walk in forest</b><br />
       <i>Mid-High friction</i>
-    </div>
-  </div>
-
-  <div style="text-align: center;">
-    <img src="../.docs/Industry_ARC-1.gif" width="300" />
-    <div>
+    </td>
+    <td align="center">
+      <img src="../.docs/Industry_ARC-1.gif" width="300" /><br />
       <b>ARC-1: Walk in industrial scenes</b><br />
       <i>Mid-High friction</i>
-    </div>
-  </div>
-
-</div>
+    </td>
+  </tr>
+</table>
 
 
 
