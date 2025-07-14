@@ -82,13 +82,13 @@ export PATH="$CONDA_PREFIX/bin:$PATH"          # (Optional) if you are using con
 All configs are set in [base_wvn/config/wvn_cfg.py](base_wvn/config/wvn_cfg.py), for all the training/testing, you should pay attention to path-related settings. Some important parameters are listed below:
 
 1. `roscfg.phy_decoder_input_topic`: this is hard-coded topic for Anymal D, do not change it.
-2. `roscfg.camera_topic` and `roscfg.camera_info_topic`: these are the camera topics for the images, you should use the camera pointing along and towards the walking direction. If the camera tf is not provided in config, you need to implement it yourself and update related entry in ros node scripts in [src/wild_visual_navigation_ros/scripts](src/wild_visual_navigation_ros/scripts).
+2. `roscfg.camera_topic` and `roscfg.camera_info_topic`: these are the camera topics for the images, you should use the camera pointing along and towards the walking direction. If the camera tf is not provided in config, you need to compute it yourself and update related entry in ros node scripts in [src/wild_visual_navigation_ros/scripts](src/wild_visual_navigation_ros/scripts).
 3. `roscfg.use_vo`: only set to `True` if there is the specific open3d_slam topic, otherwise set to `False`, then it will use the default anymal_state_topic.
 4. `general.pub_which_pred`: set to `fric` will only publish the masked dense friction prediction img, under the topic `/vd_pipeline/friction`, and set to `stiff` will only publish the stiffness prediction img, under the topic `/vd_pipeline/stiffness`.
-5. `graph.{}`: graph-related parameters, could require tuning in new scenes, such as `graph.edge_dist_thr_main_graph`, depending on the different scales of the scenes.
+5. `graph.{}`: graph-related parameters, could require tuning in different scenes, such as `graph.edge_dist_thr_main_graph`, depending on the scales of the scenes.
 6. `graph.label_ext_mode`: if set to `True`, it will record the online collected data (nodes, training batches) for potential offline training. 
 7. `offline.mode`: set to `train` or `eval` for offline train+eval or eval-only, respectively.
-8. `offline.env`: the environment name, which should match the folder name where the training data is stored, such as `snow` for `base_wvn/results/manager/train/snow`.
+8. `offline.env`: the environment name, which should match the folder name where the training data is stored, such as `forest` for `base_wvn/results/manager/train/forest`.
 9. `offline.replicate_online_training`: if set to `True`, it will use the recorded data to perform offline model training in the exact order as it will be used during the online training, otherwise it will randomly sample the recorded training data.
 10. `offline.test_on_images/nodes`: if set to `True`, it will test the model on the images or recorded nodes. It should be set together with `offline.plot_hist/nodes/masks_compare` to visualize the prediction results. Please see below for the example visualization.
 11. `offline.test_video`: if set to `True`, it will generate a visual prediction video from the given rosbag in `offline.img_bag_path` containing the desired camera img topic, please see below for the example visualization.
@@ -108,16 +108,16 @@ roslaunch wild_visual_navigation_ros play.launch
 roslaunch grand_tour_ros1 lidars.launch
 rosrun grand_tour_ros1 rosbag_play.sh *.bag # after cd into the folder containing the bag files
 ```
+If you use GrandTour dataset, we also provide the `lidars.rviz` file for visualizing relevant topics in our pipeline. Download it from [here](https://drive.google.com/file/d/1-iGgFD2KczRin03ITAk0-yzYVLS3yDb_/view?usp=drive_link) and replace the original one in the GrandTour dataset folder `~/git/grand_tour_dataset/examples_ros1/grand_tour_ros1/cfg/lidars.rviz`.
 
 ### Tmux Usage
 `Ctrl+B` then press `arrow keys` to switch between panels in the cli and use `Ctrl+C` to stop. To kill the tmux session, press your prefix (e.g. `Ctrl+A` or `B`, which is the default) and then `:` and type `kill-session`, then hit `Enter`.
 
 ## Offline Training
-Download segment_anything model checkpoint from [here](https://drive.google.com/file/d/1TU3asknvo1UKdhx0z50ghHDt1C_McKJu/view?usp=drive_link) and speicify the path in the config file.
+Download segment_anything model checkpoint from [here](https://drive.google.com/file/d/1m7-1JiITaYPDEOrq1YrQPlHtTCxwFbc9/view?usp=drive_link) and speicify the path in the config file.
 ### Extracting Offline Dataset
-It is generated from the online rosbag playing. By setting `label_ext_mode: bool=True` you can record the dataset. The corresponding settings and paths are in config file.  Please change the paths in the `play_base_wvn.sh` file to your own paths.
+It is generated from the online rosbag playing. By setting `label_ext_mode: bool=True` you can record the dataset. The corresponding settings and paths are in config file. Please change the paths in the `play_base_wvn.sh` file to your own paths (or you just use the rosbag playing from the GrandTour dataset).
 
-You need to make sure the rosbag path is set to your own ones in `play_rosbag.sh` before executing the following.
 ```bash
 ./src/wild_visual_navigation_ros/scripts/play_base_wvn.sh  # start all base_wvn nodes
 
@@ -140,7 +140,7 @@ After running offline training for the first time, you will get additional files
 - `gt_masks_SAM.pt`: all the automatically generated GT masks from SAM
 - `mask_img.pt`: the corresponding color image of the GT masks above
   
-You need to put the above files into a seperate folder, specifying `train` or `val` and followed by the env name, like `~/base_wvn/results/manager/train/snow`. The env name should match the one in the config file. 
+You need to put the above files into a seperate folder, specifying `train` or `val` and followed by the env name, like `~/base_wvn/results/manager/train/forest`. The env name should match the one in the config file. 
 
 
 ### Manual Correction of GT Masks

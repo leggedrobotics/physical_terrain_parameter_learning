@@ -264,9 +264,6 @@ class MainProcess(RosNode):
         self.camera_handler["name"] = self.camera_topic
         self.camera_handler["img_sub"] = camera_sub
 
-        # camera tf broadcaster
-        self.camera_br = tf2_ros.TransformBroadcaster()
-
         # Results publisher
         fric_pub = rospy.Publisher(
             self.param.roscfg.masked_dense_friction_prediction_image_topic,
@@ -368,14 +365,6 @@ class MainProcess(RosNode):
             # transform the camera pose from base to world
             pose_cam_in_world = np.matmul(pose_base_in_world, self.camera_in_base)
             self.camera_handler["pose_cam_in_world"] = pose_cam_in_world
-
-            # TODO: delete when pushing to github
-            if "debug" in self.mode:
-                # comment out if unneeded
-                # send tf , vis in rviz
-                self.broadcast_tf_from_matrix(
-                    pose_cam_in_world, self.world_frame, "hdr_rear_camera"
-                )
 
             # prepare image
             img_torch = rc.ros_image_to_torch(
@@ -671,39 +660,6 @@ class MainProcess(RosNode):
         elif self.layer_num == 3:
             channel_info_msg.channels = [channel_str + "_rgb"]
         self.camera_handler["channel_pub"].publish(channel_info_msg)
-
-    @accumulate_time
-    def broadcast_tf_from_matrix(
-        self,
-        matrix: Union[np.ndarray, torch.Tensor],
-        parent_frame: str,
-        child_frame: str,
-    ) -> None:
-        br = self.camera_br
-        t = TransformStamped()
-
-        if isinstance(matrix, torch.Tensor):
-            pass
-        elif isinstance(matrix, np.ndarray):
-            matrix = torch.from_numpy(matrix)
-        pose = rc.se3_to_pose_msg(matrix)
-        # Extract translation
-        t.header.stamp = rospy.Time.now()
-        t.header.frame_id = parent_frame
-        t.child_frame_id = child_frame
-
-        # Copy position
-        t.transform.translation.x = pose.position.x
-        t.transform.translation.y = pose.position.y
-        t.transform.translation.z = pose.position.z
-
-        # Copy orientation
-        t.transform.rotation.x = pose.orientation.x
-        t.transform.rotation.y = pose.orientation.y
-        t.transform.rotation.z = pose.orientation.z
-        t.transform.rotation.w = pose.orientation.w
-
-        br.sendTransform(t)
 
     def visualize_new_node(
         self,
