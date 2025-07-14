@@ -188,16 +188,6 @@ class Manager:
             with logger["Lock"]:
                 logger["total main nodes"] = f"{total_nodes}"
 
-            # Init the supervision mask
-            H, W = node.image.shape[-2], node.image.shape[-1]
-            supervision_mask = (
-                torch.ones(
-                    (self._phy_dim, H, W), dtype=torch.float32, device=self._device
-                )
-                * torch.nan
-            )
-            node.supervision_mask = supervision_mask
-
             if self._use_sub_graph:
                 subnodes = self._sub_graph.get_nodes_within_radius_range(
                     node, 0, self._update_range_sub_graph

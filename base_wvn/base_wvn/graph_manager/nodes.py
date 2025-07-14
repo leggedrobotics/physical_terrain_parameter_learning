@@ -143,6 +143,13 @@ class MainNode(BaseNode):
         self._features = features
         self._feature_type = feature_type
         self._phy_dim = phy_dim
+        H, W = self._image.shape[-2], self._image.shape[-1]
+        self._supervision_mask = (
+            torch.ones(
+                (self._phy_dim, H, W), dtype=torch.float32, device=self._image.device
+            )
+            * torch.nan
+        )
         """ 
         Warning: to save GPU memory, move img and features to cpu
         """
@@ -151,18 +158,11 @@ class MainNode(BaseNode):
             self._features[key] = tensor.cpu()
 
         # Uninitialized members
-        self._confidence = None
-        self._prediction = None
-        self._supervision_mask = None
         self._supervision_signal_valid = None
 
     @property
     def camera_name(self):
         return self._camera_name
-
-    @property
-    def confidence(self):
-        return self._confidence
 
     @property
     def feature_type(self):
@@ -185,10 +185,6 @@ class MainNode(BaseNode):
         return self._pose_cam_in_world
 
     @property
-    def prediction(self):
-        return self._prediction
-
-    @property
     def supervision_signal_valid(self):
         return self._supervision_signal_valid
 
@@ -199,10 +195,6 @@ class MainNode(BaseNode):
     @camera_name.setter
     def camera_name(self, camera_name):
         self._camera_name = camera_name
-
-    @confidence.setter
-    def confidence(self, confidence):
-        self._confidence = confidence
 
     @features.setter
     def features(self, features):
@@ -215,10 +207,6 @@ class MainNode(BaseNode):
     @image_projector.setter
     def image_projector(self, image_projector):
         self._image_projector = image_projector
-
-    @prediction.setter
-    def prediction(self, prediction):
-        self._prediction = prediction
 
     @supervision_signal_valid.setter
     def supervision_signal_valid(self, _supervision_signal_valid):
@@ -252,10 +240,6 @@ class MainNode(BaseNode):
         self._pose_cam_in_world = self._pose_cam_in_world.to(device)
 
         # TODO: also move features dict to device
-        if self._prediction is not None:
-            self._prediction = self._prediction.to(device)
-        if self._confidence is not None:
-            self._confidence = self._confidence.to(device)
         if self._supervision_mask is not None:
             self._supervision_mask = self._supervision_mask.to(device)
         if self._supervision_signal_valid is not None:
