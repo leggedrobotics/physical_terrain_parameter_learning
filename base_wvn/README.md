@@ -2,9 +2,9 @@
 This code is for online training of the visual decoder to predict the physical terrain paramters estimated by the physical decoder from images. The pipeline is based on the previous repo from "[Fast Traversability Estimation for Wild Visual Navigation](https://github.com/leggedrobotics/wild_visual_navigation)".
 
 ## Improvements Beyond the Paper
-1. **New Confidence mask generator (gmm_1d_history)**: Maintaining a short history of reconstruction loss of the footholds (they are absolute confident area), to avoid arbitrary confidence mask splitting when transitioning to a new scene. It is now enabled by default.
+1. **New Confidence mask generator (gmm_1d_history)**: Maintaining a short history of reconstruction loss of the footholds (they should be absolute confident area), to mitigate arbitrary confidence mask splitting when transitioning to a new scene. It is now enabled by default.
 
-2. **New visual decoder (SeperateMLP)**: Seperating the loss reconstruction and physical value prediction as two independent MLPs, which stabilizes the training. It is now enabled by default.
+2. **New visual decoder (SeperateMLP)**: Seperating the loss reconstruction and physical value prediction as two independent MLPs, which helps stabilize the training. It is now enabled by default.
 
 ## Compatibility with [GrandTour dataset](https://grand-tour.leggedrobotics.com/)
 This code is compatible with the GrandTour dataset, which is the largest legged robotic dataset collected using an ANYbotics ANYmal D quadruped robot equipped with Boxi, a state-of-the-art, fully open-source sensor payload. Please follow the [instructions](https://github.com/leggedrobotics/grand_tour_dataset) to install the dataset. 
