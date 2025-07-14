@@ -172,9 +172,9 @@ class ParamCollection(Serializable):
     class GraphParams:
         """Parameters for the graph."""
 
-        max_node_number: int = 40
-        update_range_main_graph: float = 5  # 50
-        edge_dist_thr_main_graph: float = 1.0  # 0.2
+        max_node_number: int = 40  # basically memory of the robot, past scenes will be removed and gradually forgotten
+        update_range_main_graph: float = 5  # 50        # footholds will only be projected to a node if they are within this distance to the node
+        edge_dist_thr_main_graph: float = 1.0  # 0.2,   # minimum distance between the node to add and the last added node
 
         use_sub_graph: bool = False  # set to True to allow label projection triggered also when a new mainnode is added, very useful when walking in the opposite direction of the camera
         edge_dist_thr_sub_graph: float = 0.05
@@ -185,7 +185,7 @@ class ParamCollection(Serializable):
         random_sample_num: int = 100
 
         vis_node_index_from_last: int = 1
-        label_ext_mode: bool = False  # turn on if want to record the online collected data (nodes, training batches)
+        label_ext_mode: bool = False  # turn on if want to record the online collected data (nodes, training batches), this will also keep all added nodes without removing those above the max_node_number
 
     graph: GraphParams = GraphParams()
 
