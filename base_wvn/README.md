@@ -1,13 +1,40 @@
 #  Self-supervised Visual Decoder Learning
 This code is for online training of the visual decoder to predict the physical terrain paramters estimated by the physical decoder from images. The pipeline is based on the previous repo from "[Fast Traversability Estimation for Wild Visual Navigation](https://github.com/leggedrobotics/wild_visual_navigation)".
 
-## Improvements beyond the paper
+## Improvements Beyond the Paper
 1. **New Confidence mask generator (gmm_1d_history)**: Maintaining a short history of reconstruction loss of the footholds (they are absolute confident area), to avoid arbitrary confidence mask splitting when transitioning to a new scene. It is now enabled by default.
 
 2. **New visual decoder (SeperateMLP)**: Seperating the loss reconstruction and physical value prediction as two independent MLPs, which stabilizes the training. It is now enabled by default.
 
 ## Compatibility with [GrandTour dataset](https://grand-tour.leggedrobotics.com/)
 This code is compatible with the GrandTour dataset, which is the largest legged robotic dataset collected using an ANYbotics ANYmal D quadruped robot equipped with Boxi, a state-of-the-art, fully open-source sensor payload. Please follow the [instructions](https://github.com/leggedrobotics/grand_tour_dataset) to install the dataset. 
+
+Here we showcase three examples of our online training pipeline on the GrandTour dataset. The videos are recorded live during the online training:
+
+<div align="center" style="display: flex; justify-content: center; gap: 20px;">
+
+  <div style="text-align: center;">
+    <video width="300" controls>
+      <source src="../.docs/ICE-1.mp4" type="video/mp4">
+    </video>
+    <div><b>ICE-1: Walk/Slip on ice</b></div>
+  </div>
+
+  <div style="text-align: center;">
+    <video width="300" controls>
+      <source src="../.docs/Forest_ALB-3.mp4" type="video/mp4">
+    </video>
+    <div><b>ALB-3: Walk in forest</b></div>
+  </div>
+
+  <div style="text-align: center;">
+    <video width="300" controls>
+      <source src="../.docs/Industry_ARC-1.mp4" type="video/mp4">
+    </video>
+    <div><b>ARC-1: Walk in industrial scenes</b></div>
+  </div>
+
+</div>
 
 ## Installation
 **Attention**: Please follow the installation order exactly as below. Otherwise, you may encounter some errors. Here we use mamba for virtual environment management with **Python 3.9**
@@ -54,7 +81,7 @@ source devel/setup.bash
 export PATH="$CONDA_PREFIX/bin:$PATH"          # (Optional) if you are using conda environment and experiencing missing python path after sourcing the workspace 
 ```
 
-## General configuration
+## General Configuration
 All configs are set in [base_wvn/config/wvn_cfg.py](base_wvn/config/wvn_cfg.py), for all the training/testing, you should pay attention to path-related settings. Some important parameters are listed below:
 
 1. `roscfg.phy_decoder_input_topic`: this is hard-coded topic for Anymal D, do not change it.
@@ -70,7 +97,7 @@ All configs are set in [base_wvn/config/wvn_cfg.py](base_wvn/config/wvn_cfg.py),
 11. `offline.test_video`: if set to `True`, it will generate a visual prediction video from the given rosbag in `offline.img_bag_path` containing the desired camera img topic, please see below for the example visualization.
 
 
-## Online training
+## Online Training
 
 ### Running
 For different configs, please refer to the code and config file.
@@ -85,12 +112,12 @@ roslaunch grand_tour_ros1 lidars.launch
 rosrun grand_tour_ros1 rosbag_play.sh *.bag # after cd into the folder containing the bag files
 ```
 
-### Tmux usage
+### Tmux Usage
 `Ctrl+B` then press `arrow keys` to switch between panels in the cli and use `Ctrl+C` to stop. To kill the tmux session, press your prefix (e.g. `Ctrl+A` or `B`, which is the default) and then `:` and type `kill-session`, then hit `Enter`.
 
-## Offline training
+## Offline Training
 Download segment_anything model checkpoint from [here](https://drive.google.com/file/d/1TU3asknvo1UKdhx0z50ghHDt1C_McKJu/view?usp=drive_link) and speicify the path in the config file.
-### Extracting offline dataset
+### Extracting Offline Dataset
 It is generated from the online rosbag playing. By setting `label_ext_mode: bool=True` you can record the dataset. The corresponding settings and paths are in config file.  Please change the paths in the `play_base_wvn.sh` file to your own paths.
 
 You need to make sure the rosbag path is set to your own ones in `play_rosbag.sh` before executing the following.
@@ -101,10 +128,10 @@ roslaunch wild_visual_navigation_ros play.launch # start rosbag playing or using
 
 # Follow Tmux usage and use `Ctrl+C` to stop the recording.
 ```
-### Tmux usage
+### Tmux Usage
 `Ctrl+C` in the **left-most** panel will also finish the recording.
 
-### Dataset structure
+### Dataset Structure
 The default saving path is `~/base_wvn/results/manager` with the following files:
 
 - `train_data.pt`: only store the training data pairs, which are the same for online training
@@ -119,7 +146,7 @@ After running offline training for the first time, you will get additional files
 You need to put the above files into a seperate folder, specifying `train` or `val` and followed by the env name, like `~/base_wvn/results/manager/train/snow`. The env name should match the one in the config file. 
 
 
-### Manual correction of GT masks
+### Manual Correction of GT Masks
 Beacause the automatically generated GT masks (from SAM) are not perfect, we need to manually correct them with segments.ai . 
 
 You can use the `base_wvn/offline/seg_correction.py` to correct the masks. The detailed usage you can refer to the code.
@@ -128,7 +155,7 @@ For offline training/testing, you can switch the config and run the following co
 ```bash
 python base_wvn/offline/train_eval.py
 ```
-### Visualization Example
+### Offline Visualization Example
 1. Dense prediction from imgs stored in nodes by setting `param.offline.plot_nodes=True`: 
 <p align="center">
     <img src="../.docs/dense_pred.png" width="800"/>
