@@ -51,7 +51,7 @@ pip install -r requirements.txt
 ```
 If you encounter any errors, please follow the error message to install the missing dependencies.
 
-**Attention**: As a prerequest you need to pip install the [Stand-alone pre-trained physical decoder](phy_decoder/README.md). Also install the package from https://github.com/utiasSTARS/liegroups.git and https://github.com/facebookresearch/segment-anything.git. Please also put [ros-comm](https://github.com/leggedrobotics/ros_comm) under src folder to avoid ros comm bugs during real-time running. You need to sudo apt install `tmux`.
+**Attention**: As a prerequest you need to pip install the [Stand-alone pre-trained physical decoder](../physical_decoder/). Also install the package from https://github.com/utiasSTARS/liegroups.git and https://github.com/facebookresearch/segment-anything.git. Please also put [ros-comm](https://github.com/leggedrobotics/ros_comm) under src folder to avoid ros comm bugs during real-time running. You need to sudo apt install `tmux`.
 
 Set you neptune API token, username, and project name in the system file `.bashrc`:
 ```bash
