@@ -230,7 +230,7 @@ class ParamCollection(Serializable):
     class OfflineParams:
         mode: str = "train"  # or 'eval'
         max_epochs: int = 1
-        env: str = "white"  # your own defined, please put the data files into this folder first
+        env: str = "industry"  # your own defined, please put the data files into this folder first
         reload_model: bool = False
         use_online_ckpt: bool = False
         replicate_online_training: bool = True
