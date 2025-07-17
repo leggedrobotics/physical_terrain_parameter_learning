@@ -27,7 +27,7 @@ class ConfidenceMaskGeneratorFactory:
         if mode == "gmm_1d":
             return GMM1D(
                 num_components=2,
-                deivice=device,
+                device=device,
             )
         elif mode == "fixed":
             return FixedThreshold(
@@ -40,7 +40,7 @@ class ConfidenceMaskGeneratorFactory:
         elif mode == "gmm_1d_history":
             return GMM1DHistory(
                 num_components=2,
-                deivice=device,
+                device=device,
                 max_history_length=20,  # adjustable
             )
         else:
@@ -243,10 +243,10 @@ class FixedThreshold(MaskGenerator):
 
 
 class GMM1D(MaskGenerator):
-    def __init__(self, num_components: int, deivice: str):
+    def __init__(self, num_components: int, device: str):
         super(GMM1D, self).__init__()
         self.num_components = num_components
-        self.device = deivice
+        self.device = device
         self.gmm_1d = GaussianMixture(
             n_components=self.num_components,
             random_state=42,
@@ -274,10 +274,10 @@ class GMM1D(MaskGenerator):
 
 
 class GMM1DHistory(MaskGenerator):
-    def __init__(self, num_components: int, deivice: str, max_history_length: int):
+    def __init__(self, num_components: int, device: str, max_history_length: int):
         super(GMM1DHistory, self).__init__()
         self.num_components = num_components
-        self.device = deivice
+        self.device = device
         self.max_history_length = max_history_length
         self.loss_history_raw = deque(
             maxlen=max_history_length
