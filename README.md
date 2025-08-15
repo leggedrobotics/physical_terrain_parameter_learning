@@ -31,6 +31,18 @@ If this code supports your research, please consider citing the following work. 
 ## Codebase Overview
 ![Codebase Overview](.docs/codebase.png)
 
+## Application Notes (Physical Decoder and its Training)
+**Features:**
+- Does not rely on dedicated sensors for terrain parameter estimation.
+- Provides reasonable per-foot estimates of terrain friction and stiffness with minimal delay.
+- Training is independent from locomotion policy learning
+
+
+**Things to Notice:**
+- The provided code/model currently supports **ANYmal D** only. Using it with a different robot or policy may require code modifications and retraining.
+- Predictions can be noisy in real-world deployment (friction estimates are typically noisier than stiffness). We recommend using the decoder output as a **relative** or **reference measurement** rather than relying on absolute values.
+
+
 ## 1. Stand-alone Pre-trained Physical Decoder (Folder: [physical_decoder](physical_decoder/))
 You can try out our pre-trained physical decoder as follows:
 

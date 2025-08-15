@@ -31,7 +31,23 @@ Here we showcase three examples of our online training pipeline on the GrandTour
   </tr>
 </table>
 
+## Application Notes 
+**Features:**
+- Fast online training and adaptation to new scenes
+- The online training framework is, in principle, independent of specific robot platforms.
+- Includes fast anomaly detection to filter out out-of-distribution (OOD) predictions.
+- Suitable for long-horizon tasks without significant memory overhead, as old data is not stored.
 
+**Things to Notice:**
+- Different scenes may require hyperparameter tuning, particularly for graph-related parameters (e.g., using shorter graph edge distances in indoor or frequently-changing scenes compared to outdoor or relatively static ones).
+- Foothold projection accuracy is critical for effective learning. In small or cluttered scenes, incorrect projection may associate mismatched physical values with objects.
+- Several anomaly detection methods are provided, each with unique strengths as listed below. You may choose the most suitable method for your needs.
+
+| Method     | Strengths                                              | Limitations                                      |
+|-----------------|--------------------------------------------------------|--------------------------------------------------|
+| **Gaussian/Fixed** (old)     | Stable during scene transitions or temporary camera occlusions (no assumption on input distribution) | Requires hyperparameter tuning; slower convergence                         |
+| **GMM1D** (proposed) | Fast; hyperparameter-free                                                 | Performance degrades on highly non-bimodal inputs (e.g., during scene transitions or temporary camera occlusions) |
+| **GMM1D_History** (new)         | Fast; typically requires little tuning      | Less degradation on highly non-bimodal inputs |
 
 ## Installation
 **Attention**: Please follow the installation order exactly as below. Otherwise, you may encounter some errors. Here we use mamba for virtual environment management with **Python 3.9**
