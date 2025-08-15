@@ -39,7 +39,7 @@ Here we showcase three examples of our online training pipeline on the GrandTour
 - Suitable for long-horizon tasks without significant memory overhead, as old data is not stored.
 
 **Things to Notice:**
-- Different scenes may require hyperparameter tuning, particularly for graph-related parameters (e.g., using shorter graph edge distances in indoor or frequently-changing scenes compared to outdoor or relatively static ones).
+- Different scenes may require hyperparameter tuning, particularly for graph-related parameters (e.g., using shorter graph edge distances / update range in indoor or frequently-changing scenes compared to outdoor or relatively static ones).
 - Foothold projection accuracy is critical for effective learning. In small or cluttered scenes, incorrect projection may associate mismatched physical values with objects.
 - Several anomaly detection methods are provided, each with unique strengths as listed below. You may choose the most suitable method for your needs.
 
