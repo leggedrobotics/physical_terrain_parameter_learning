@@ -47,7 +47,7 @@ Here we showcase three examples of our online training pipeline on the GrandTour
 |-----------------|--------------------------------------------------------|--------------------------------------------------|
 | **Gaussian/Fixed** (old)     | Stable during scene transitions or temporary camera occlusions (no assumption on input distribution) | Requires hyperparameter tuning; converges slowly if tuned for stability, can also be fast but unstable if tuned aggressively                         |
 | **GMM1D** (proposed) | Fast; hyperparameter-free; adaptive threshold per input → robust in online training                                                 | Performance degrades on highly non-bimodal inputs (e.g., during scene transitions or temporary camera occlusions) |
-| **GMM1D_History** (new)         | Fast; typically requires little tuning      | Less degradation on highly non-bimodal inputs |
+| **GMM1D_History** (new)         | Fast; typically requires little tuning; adaptive threshold      | Less degradation on highly non-bimodal inputs |
 
 ## Installation
 **Attention**: Please follow the installation order exactly as below. Otherwise, you may encounter some errors. Here we use mamba for virtual environment management with **Python 3.9**
